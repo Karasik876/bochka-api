@@ -6,7 +6,7 @@
 [![Educational Project](https://img.shields.io/badge/Status-Educational-orange)](https://github.com/your-repo)
 
 ## 🎯 About the Project
-🚀 **bochka-api** is a stock market simulation API built for educational purposes. It allows users to trade financial instruments in a sandboxed environment. This project is **not intended for real-world financial applications** and should not be used for actual trading. 
+🚀 **bochka-api** is a stock market simulation API built for educational purposes. It allows users to trade financial instruments in a sandboxed environment. This project is **not intended for real-world financial applications** and should not be used for actual trading.
 
 The system models key aspects of a stock exchange:
 - 📊 Order execution mechanisms
