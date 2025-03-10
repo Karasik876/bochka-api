@@ -1,5 +1,10 @@
 # Makefile for FastAPI project
 
+.DEFAULT_GOAL:=help
+.ONESHELL:
+.EXPORT_ALL_VARIABLES:
+MAKEFLAGS += --no-print-directory
+
 # Variables
 DOCKER_COMPOSE = docker-compose
 DOCKER_COMPOSE_PROD = docker-compose -f docker-compose.prod.yml
