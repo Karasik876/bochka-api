@@ -1,11 +1,12 @@
-from sqlalchemy import ForeignKey, Enum, String, Integer, DateTime, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
-from uuid_extensions import uuid7
-from src.models.base import Base
 
-from src.models.user import User
+from sqlalchemy import UUID, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from uuid_extensions import uuid7
+
+from src.models.base import Base
 from src.models.instrument import Instrument
+from src.models.user import User
 
 
 class Balance(Base):

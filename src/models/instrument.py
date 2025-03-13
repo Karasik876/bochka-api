@@ -1,8 +1,9 @@
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.models.balance import BalanceOperation
 from src.models.base import Base
 from src.models.order import Order, Transaction
-from src.models.balance import BalanceOperation
 
 
 class Instrument(Base):

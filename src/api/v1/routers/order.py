@@ -1,5 +1,5 @@
-from pydantic import UUID4
 from fastapi import APIRouter
+from pydantic import UUID4
 
 router = APIRouter(prefix="/order", tags=["order"])
 

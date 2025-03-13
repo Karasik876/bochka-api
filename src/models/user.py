@@ -1,11 +1,11 @@
 import enum
-from src.models.base import Base
-from sqlalchemy import String, Enum, UUID
-from sqlalchemy.orm import mapped_column, relationship, Mapped
 
+from sqlalchemy import UUID, Enum, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_extensions import uuid7
 
 from src.models.balance import Balance, BalanceOperation
+from src.models.base import Base
 from src.models.order import Order
 
 
