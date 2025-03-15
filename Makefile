@@ -65,7 +65,7 @@ down-prod:
 
 # Run database migrations
 migrate:
-	$(UV) run $(ALEMBIC) upgrade head
+	$(UV) run $(ALEMBIC) -x run_seeds=true upgrade head
 
 # Install dependencies using uv
 install-deps:

@@ -1,8 +1,7 @@
 import enum
-from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import UUID, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
 
@@ -72,9 +71,6 @@ class Transaction(Base):
     )
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
 
     instrument: Mapped["Instrument"] = relationship(
         "Instrument", back_populates="transactions"
