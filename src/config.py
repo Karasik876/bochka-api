@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ALLOW_ORIGINS: list[str] = ["*"]
     ALLOW_HOSTS: list[str] = ["*"]
 
-    POSTGRES_HOST: str = "db"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PORT: int = 5432
     POSTGRES_PASSWORD: str = "postgres"
