@@ -8,6 +8,7 @@ MAKEFLAGS += --no-print-directory
 # Variables
 DOCKER_COMPOSE = docker-compose
 DOCKER_COMPOSE_PROD = docker-compose -f docker-compose.prod.yml
+ALEMBIC = alembic
 UV = uv
 PRE_COMMIT = pre-commit
 PYTEST = pytest
@@ -35,7 +36,7 @@ help:
 
 # Start the development environment
 up:
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up -d --build
 
 # Stop the development environment
 down:
@@ -51,7 +52,7 @@ down-prod:
 
 # Run database migrations
 migrate:
-	$(DOCKER_COMPOSE) exec web alembic upgrade head
+	$(UV) run $(ALEMBIC) upgrade head
 
 # Install dependencies using uv
 install-deps:
