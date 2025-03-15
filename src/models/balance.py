@@ -11,6 +11,7 @@ from src.models.user import User
 
 class Balance(Base):
     __tablename__ = "balances"
+
     repr_cols = ("user_id", "ticker", "amount")
 
     user_id: Mapped[str] = mapped_column(

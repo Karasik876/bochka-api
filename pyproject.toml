@@ -31,6 +31,7 @@ target-version = "py313"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
+    "alembic",
     ".bzr",
     ".direnv",
     ".eggs",
