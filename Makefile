@@ -16,33 +16,36 @@ RUFF = ruff
 UVICORN = uvicorn
 PYRIGHT = pyright
 
-# Detect OS
-ifeq ($(OS),Windows_NT)
-	OS := Windows
-else
-	OS := $(shell uname -s)
-endif
-
 # Help command
 help:
 	@echo "Available commands:"
-	@echo "  help               - Show this help message"
+	@echo "== Development Environment =="
 	@echo "  up                 - Start the development environment using docker-compose"
 	@echo "  down               - Stop the development environment"
+	@echo "  dev                - Start the development environment and the app"
+	@echo "== Production Environment =="
 	@echo "  up-prod            - Start the production environment using docker-compose.prod.yml"
 	@echo "  down-prod          - Stop the production environment"
+	@echo "== Database =="
 	@echo "  migrate            - Run database migrations"
+	@echo "== Dependencies =="
 	@echo "  install-deps       - Install dependencies using uv"
+	@echo "== Code Quality =="
 	@echo "  check              - Run pre-commit checks"
 	@echo "  check-install      - Install pre-commit hooks"
 	@echo "  lint               - Perform linting on all files using ruff"
 	@echo "  format             - Format all files using ruff format"
 	@echo "  type-check         - Run static type checking using pyright"
 	@echo "  test               - Test the app (runs lint and format first)"
+	@echo "== Application =="
 	@echo "  start              - Start the app using uvicorn"
-	@echo "  init               - Initialize the project (install dependencies, create .env file)"
-	@echo "  dev                - Start the development environment and the app"
-	@echo "  create-env         - Create .env file from example.env"
+	@echo "== Project Initialization =="
+	@echo "  init-unix          - Initialize the project on Unix systems (install dependencies, create .env file)"
+	@echo "  init-windows       - Initialize the project on Windows systems (install dependencies, create .env file)"
+	@echo "  create-env-unix    - Create .env file from example.env on Unix systems"
+	@echo "  create-env-windows - Create .env file from example.env on Windows systems"
+	@echo "== Miscellaneous =="
+	@echo "  help               - Show this help message"
 
 # Start the development environment
 up:
@@ -96,28 +99,33 @@ test: lint format type-check
 start:
 	$(UV) run $(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Create .env file from example.env
-create-env:
-ifeq ($(OS),Windows)
-	@if exist .env ( \
-		echo .env file already exists. \
-	) else ( \
-		copy example.env .env && \
-		echo .env file created from example.env. \
-	)
-else
+# Create .env file from example.env on Unix systems
+create-env-unix:
 	@if [ -f .env ]; then \
-		echo ".env file already exists."; \
+		echo ".env file already exists. Aborting to avoid overwriting."; \
 	else \
 		cp example.env .env; \
 		echo ".env file created from example.env."; \
 	fi
-endif
 
-# Initialize the project (install dependencies, create .env file)
-init: install-deps create-env
+# Create .env file from example.env on Windows systems
+create-env-windows:
+	@if exist .env ( \
+		echo .env file already exists. Aborting to avoid overwriting. \
+	) else ( \
+		copy example.env .env && \
+		echo .env file created from example.env. \
+	)
+
+# Initialize the project on Unix systems (install dependencies, create .env file)
+uinit: install-deps create-env-unix
+	@echo "Project initialized for Unix systems."
+
+# Initialize the project on Windows systems (install dependencies, create .env file)
+winit: install-deps create-env-windows
+	@echo "Project initialized for Windows systems."
 
 # Start the development environment and the app
-dev: up start
+dev: up migrate start
 
-.PHONY: help up down up-prod down-prod migrate install-deps pre-commit pre-commit-install lint format type-check test start create-env init dev
+.PHONY: help up down up-prod down-prod migrate install-deps pre-commit pre-commit-install lint format type-check test start create-env-unix create-env-windows init-unix init-windows dev
