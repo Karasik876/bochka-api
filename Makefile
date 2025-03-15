@@ -16,6 +16,13 @@ RUFF = ruff
 UVICORN = uvicorn
 PYRIGHT = pyright
 
+# Detect OS
+ifeq ($(OS),Windows_NT)
+	OS := Windows
+else
+	OS := $(shell uname -s)
+endif
+
 # Help command
 help:
 	@echo "Available commands:"
@@ -33,6 +40,9 @@ help:
 	@echo "  type-check         - Run static type checking using pyright"
 	@echo "  test               - Test the app (runs lint and format first)"
 	@echo "  start              - Start the app using uvicorn"
+	@echo "  init               - Initialize the project (install dependencies, create .env file)"
+	@echo "  dev                - Start the development environment and the app"
+	@echo "  create-env         - Create .env file from example.env"
 
 # Start the development environment
 up:
@@ -82,9 +92,32 @@ type-check:
 test: lint format type-check
 	$(UV) run $(PYTEST) -v --durations=0 --cov .
 
-
 # Start the app using uvicorn
 start:
 	$(UV) run $(UVICORN) src.main:app --host 0.0.0.0 --port 8000 --reload
 
-.PHONY: help up down up-prod down-prod migrate install-deps pre-commit pre-commit-install lint format type-check test start
+# Create .env file from example.env
+create-env:
+ifeq ($(OS),Windows)
+	@if exist .env ( \
+		echo .env file already exists. \
+	) else ( \
+		copy example.env .env && \
+		echo .env file created from example.env. \
+	)
+else
+	@if [ -f .env ]; then \
+		echo ".env file already exists."; \
+	else \
+		cp example.env .env; \
+		echo ".env file created from example.env."; \
+	fi
+endif
+
+# Initialize the project (install dependencies, create .env file)
+init: install-deps create-env
+
+# Start the development environment and the app
+dev: up start
+
+.PHONY: help up down up-prod down-prod migrate install-deps pre-commit pre-commit-install lint format type-check test start create-env init dev
