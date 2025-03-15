@@ -1,12 +1,21 @@
+import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import UUID, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from uuid_extensions import uuid7
+from uuid_v7.base import uuid7
 
 from src.models.base import Base
-from src.models.instrument import Instrument
-from src.models.user import User
+
+if TYPE_CHECKING:
+    from src.models.instrument import Instrument
+    from src.models.user import User
+
+
+class OperationType(enum.Enum):
+    DEPOSIT = "DEPOSIT"
+    WITHDRAW = "WITHDRAW"
 
 
 class Balance(Base):
@@ -14,8 +23,8 @@ class Balance(Base):
 
     repr_cols = ("user_id", "ticker", "amount")
 
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id"), primary_key=True
+    user_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True
     )
     ticker: Mapped[str] = mapped_column(
         String(10), ForeignKey("instruments.ticker"), primary_key=True
@@ -24,7 +33,7 @@ class Balance(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="balances")
     instrument: Mapped["Instrument"] = relationship(
-        "Instrument", back_populates="operations"
+        "Instrument", back_populates="balances"
     )
 
 
@@ -35,15 +44,15 @@ class BalanceOperation(Base):
     id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid7
     )
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id"), nullable=False
+    user_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     ticker: Mapped[str] = mapped_column(
         String(10), ForeignKey("instruments.ticker"), nullable=False
     )
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    operation_type: Mapped[str] = mapped_column(
-        Enum("DEPOSIT", "WITHDRAW"), nullable=False
+    operation_type: Mapped[OperationType] = mapped_column(
+        Enum(OperationType), nullable=False
     )
     timestamp: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
@@ -51,5 +60,5 @@ class BalanceOperation(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="operations")
     instrument: Mapped["Instrument"] = relationship(
-        "Instrument", back_populates="operations"
+        "Instrument", back_populates="balance_operations"
     )

@@ -1,12 +1,15 @@
 import enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import UUID, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from uuid_extensions import uuid7
+from uuid_v7.base import uuid7
 
-from src.models.balance import Balance, BalanceOperation
 from src.models.base import Base
-from src.models.order import Order
+
+if TYPE_CHECKING:
+    from src.models.balance import Balance, BalanceOperation
+    from src.models.order import Order
 
 
 class UserRole(enum.Enum):

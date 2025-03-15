@@ -1,13 +1,16 @@
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import UUID, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from uuid_extensions import uuid7
+from uuid_v7.base import uuid7
 
 from src.models.base import Base
-from src.models.instrument import Instrument
-from src.models.user import User
+
+if TYPE_CHECKING:
+    from src.models.instrument import Instrument
+    from src.models.user import User
 
 
 class OrderType(enum.Enum):
@@ -34,8 +37,8 @@ class Order(Base):
     id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid7
     )
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id"), nullable=False
+    user_id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     status: Mapped[OrderStatus] = mapped_column(
         Enum(OrderStatus), default=OrderStatus.NEW, nullable=False
@@ -63,9 +66,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
     repr_cols = ("id", "ticker", "amount")
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid7
-    )
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     ticker: Mapped[str] = mapped_column(
         String(10), ForeignKey("instruments.ticker"), nullable=False
     )
