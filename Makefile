@@ -24,7 +24,7 @@ help:
 	@echo "  down               - Stop the development environment"
 	@echo "  dev                - Start the development environment and the app"
 	@echo "== Production Environment =="
-	@echo "  up-prod            - Start the production environment using docker-compose.prod.yml"
+	@echo "  prod               - Start the production environment using docker-compose.prod.yml"
 	@echo "  down-prod          - Stop the production environment"
 	@echo "== Database =="
 	@echo "  migrate            - Run database migrations"
@@ -40,8 +40,8 @@ help:
 	@echo "== Application =="
 	@echo "  start              - Start the app using uvicorn"
 	@echo "== Project Initialization =="
-	@echo "  uinit          - Initialize the project on Unix systems (install dependencies, create .env file)"
-	@echo "  winit       - Initialize the project on Windows systems (install dependencies, create .env file)"
+	@echo "  uinit              - Initialize the project on Unix systems (install dependencies, create .env file)"
+	@echo "  winit              - Initialize the project on Windows systems (install dependencies, create .env file)"
 	@echo "  create-env-unix    - Create .env file from example.env on Unix systems"
 	@echo "  create-env-windows - Create .env file from example.env on Windows systems"
 	@echo "== Miscellaneous =="
@@ -56,8 +56,8 @@ down:
 	$(DOCKER_COMPOSE) down
 
 # Start the production environment
-up-prod:
-	$(DOCKER_COMPOSE_PROD) up -d
+prod:
+	$(DOCKER_COMPOSE_PROD) up -d --build
 
 # Stop the production environment
 down-prod:

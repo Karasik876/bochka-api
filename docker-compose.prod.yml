@@ -38,7 +38,7 @@ services:
         max_attempts: 3
         window: 120s
     healthcheck:
-      test: curl -sS http://127.0.0.1:8000/api/healthcheck || echo 1 # TODO
+      test: curl -sS http://127.0.0.1:8000/api/v1/public/healthcheck || echo 1
       interval: 30s
       timeout: 3s
       retries: 12

@@ -1,22 +1,8 @@
 #!/bin/sh
-#echo "Init migrations"
-#until alembic upgrade head
-#do
-#  echo "Waiting for init migrations..."
-#  sleep 2
-#done
-#echo "Creating migrations"
-#until alembic revision --autogenerate
-#do
-#  echo "Waiting for create migrations..."
-#  sleep 2
-#done
-#echo "Applying migrations"
-#until alembic upgrade head
-#do
-#  echo "Waiting for apply migrations..."
-#  sleep 2
-#done
-cd src
-echo "Entrypoint for app!"
+echo "Applying migrations"
+until alembic -x run_seeds=true upgrade head
+do
+  echo "Waiting for applying migrations..."
+  sleep 2
+done
 exec "$@"
