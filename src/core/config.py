@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.core import settings, utils
@@ -11,10 +9,13 @@ class Settings(BaseSettings):
     APP_DESCRIPTION: str = "API for Bochka stock exchange"
     APP_VERSION: str = "0.1.0"
 
+    DOCS_URL: str | None = "/docs"
+    REDOC_URL: str | None = "/redoc"
+
     DEBUG: bool = False
 
     CSRF_COOKIE_NAME: str = "csrftoken"
-    CSRF_EXPIRE_TIME: int = 86400 * 7  # 7 дней
+    CSRF_EXPIRE_TIME: int = 86400 * 7
 
     DOMAIN: str = "example.site"
 
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
     USER_ROLE: str = "USER"
     ADMIN_ROLE: str = "ADMIN"
 
-    model_config = SettingsConfigDict(env_file=Path(__file__).parents[1] / ".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=settings.env_config.ENV_FILE_PATH, extra="ignore")
 
 
 def get_settings():
