@@ -7,7 +7,7 @@ class EntityNotFoundError(ServiceError):
 
     def __init__(self, service_name: str, identifier: str):
         super().__init__(
-            f"{service_name} service failed to find entity with requested identifier ({identifier})"
+            f"{service_name} service failed to find entity with requested identifier ({identifier})"  # noqa: E501
         )
 
 
@@ -53,7 +53,7 @@ class DuplicateError(RepositoryError):
 
     def __init__(self, repo_name: str, table_name: str, message: str):
         super().__init__(
-            f"Duplicate entry in {repo_name} repository for table '{table_name}'. Detail: {message}"
+            f"Duplicate entry in {repo_name} repository for table '{table_name}'. Detail{message}"
         )
 
 

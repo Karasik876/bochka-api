@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 958d67ebfc49
-Revises: 61fd8eb3d64d
-Create Date: 2025-03-15 20:29:38.521746
+Revision ID: f15e03fc8d52
+Revises: 
+Create Date: 2025-05-21 19:32:53.739623
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '958d67ebfc49'
-down_revision: Union[str, None] = '61fd8eb3d64d'
+revision: str = 'f15e03fc8d52'
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -23,19 +23,19 @@ def upgrade() -> None:
     op.create_table('instruments',
     sa.Column('ticker', sa.String(length=10), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('ticker', name=op.f('pk_instruments'))
     )
     op.create_table('users',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('role', sa.Enum('USER', 'ADMIN', name='userrole'), nullable=False),
-    sa.Column('api_key', sa.String(length=255), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_users')),
-    sa.UniqueConstraint('api_key', name=op.f('uq_users_api_key'))
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_users'))
     )
     op.create_table('balance_operations',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -43,9 +43,9 @@ def upgrade() -> None:
     sa.Column('ticker', sa.String(length=10), nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
     sa.Column('operation_type', sa.Enum('DEPOSIT', 'WITHDRAW', name='operationtype'), nullable=False),
-    sa.Column('timestamp', sa.DateTime(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['ticker'], ['instruments.ticker'], name=op.f('fk_balance_operations_ticker_instruments')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_balance_operations_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_balance_operations'))
@@ -54,8 +54,9 @@ def upgrade() -> None:
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('ticker', sa.String(length=10), nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['ticker'], ['instruments.ticker'], name=op.f('fk_balances_ticker_instruments')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_balances_user_id_users')),
     sa.PrimaryKeyConstraint('user_id', 'ticker', name=op.f('pk_balances'))
@@ -70,8 +71,9 @@ def upgrade() -> None:
     sa.Column('price', sa.Integer(), nullable=False),
     sa.Column('order_type', sa.Enum('LIMIT', 'MARKET', name='ordertype'), nullable=False),
     sa.Column('filled', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['ticker'], ['instruments.ticker'], name=op.f('fk_orders_ticker_instruments')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_orders_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_orders'))
@@ -81,9 +83,8 @@ def upgrade() -> None:
     sa.Column('ticker', sa.String(length=10), nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
     sa.Column('price', sa.Integer(), nullable=False),
-    sa.Column('timestamp', sa.DateTime(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("TIMEZONE('utc', NOW())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.ForeignKeyConstraint(['ticker'], ['instruments.ticker'], name=op.f('fk_transactions_ticker_instruments')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_transactions'))
     )
