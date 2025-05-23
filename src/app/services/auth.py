@@ -22,9 +22,7 @@ class Authentication:
     ) -> schemas.users.Auth:
         user = await self._get_or_create_user(uow, telegram_data)
         token = self.encode_token({"user_id": str(user.id)})
-        return schemas.users.Auth(
-            id=user.id, name=user.name, role=user.role, api_key="key-" + token
-        )
+        return schemas.users.Auth(id=user.id, name=user.name, role=user.role, api_key=token)
 
     async def _get_or_create_user(
         self, uow: core.UnitOfWork, user_data: schemas.users.Create

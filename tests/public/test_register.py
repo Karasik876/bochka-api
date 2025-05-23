@@ -13,7 +13,7 @@ async def test_register_users_success(client: AsyncClient):
     json_response = response.json()
     assert json_response["name"] == "Test User"
     assert json_response["role"] == "USER"
-    assert json_response["api_key"].startswith("key-")
+    assert json_response.get("api_key", None) is not None
 
     user_data = {"name": "Test User2"}
     response = await client.post("/public/register", json=user_data)
@@ -22,7 +22,7 @@ async def test_register_users_success(client: AsyncClient):
     json_response = response.json()
     assert json_response["name"] == "Test User2"
     assert json_response["role"] == "USER"
-    assert json_response["api_key"].startswith("key-")
+    assert json_response.get("api_key", None) is not None
 
 
 async def test_register_user_invalid_data(client: AsyncClient):
