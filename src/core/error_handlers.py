@@ -106,6 +106,15 @@ def register_error_handlers(app: FastAPI) -> None:  # noqa: C901
             status.HTTP_401_UNAUTHORIZED,
         )
 
+    @app.exception_handler(NotImplementedError)
+    def handle_not_implemented_error(request: Request, exc: NotImplementedError) -> ORJSONResponse:
+        return make_error_response(
+            "This feature not implemented yet",
+            "This feature not implemented yet",
+            "not_implemented",
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
     @app.exception_handler(Exception)
     def handle_internal_server_error(request: Request, exc: Exception) -> ORJSONResponse:
         return make_error_response(
