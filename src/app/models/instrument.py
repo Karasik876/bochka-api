@@ -1,9 +1,14 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src import core
-from src.app.models.balance import Balance, BalanceOperation
-from src.app.models.order import Order, Transaction
+
+if TYPE_CHECKING:
+    from src.app.models.balance import Balance
+    from src.app.models.balance_operation import BalanceOperation
+    from src.app.models.order import Order, Transaction
 
 
 class Instrument(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):

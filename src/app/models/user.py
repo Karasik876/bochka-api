@@ -8,7 +8,8 @@ from uuid_v7.base import uuid7
 from src import core
 
 if TYPE_CHECKING:
-    from src.app.models.balance import Balance, BalanceOperation
+    from src.app.models.balance import Balance
+    from src.app.models.balance_operation import BalanceOperation
     from src.app.models.order import Order
 
 settings = core.config.get_settings()

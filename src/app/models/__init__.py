@@ -1,4 +1,5 @@
-from .balance import Balance, BalanceOperation
+from .balance import Balance
+from .balance_operation import BalanceOperation
 from .instrument import Instrument
 from .order import Order, Transaction
 from .user import User, UserRole
