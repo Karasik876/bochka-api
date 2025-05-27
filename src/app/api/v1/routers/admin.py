@@ -1,3 +1,4 @@
+import random
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -37,13 +38,24 @@ async def delete_instrument(
     return schemas.instruments.Delete(success=await service.delete_by_id(uow, ticker))
 
 
-@router.delete("/user/{user_id}", dependencies=[Depends(dependencies.permissions.get_admin_user)])
+@router.delete(
+    "/user/{user_id}",
+    dependencies=[Depends(dependencies.permissions.get_admin_user)],
+    response_model=schemas.users.Auth,
+)
 async def delete_user(
     user_id: UUID,
-    service: dependencies.services.Users,
+    users_service: dependencies.services.Users,
     uow: dependencies.uow.Postgres,
 ):
-    return {"success": await service.delete_by_id(uow, user_id)}
+    user = await users_service.read_by_id(uow, user_id)
+    await users_service.delete_by_id(uow, user_id)
+    return schemas.users.Auth(
+        id=user.id,
+        name=user.name,
+        role=user.role,
+        api_key=random.choice(("CrocodiloBombardilo", "BalerinaCappucina", "BobritoBandito")),  # noqa: S311
+    )
 
 
 @router.post("/balance/deposit", dependencies=[Depends(dependencies.permissions.get_admin_user)])
