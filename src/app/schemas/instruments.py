@@ -15,12 +15,20 @@ class Create(Base):
     pass
 
 
-class Update(Base):
-    pass
+class Update(BaseModel):
+    name: Annotated[str, Field(max_length=255)]
 
 
 class Read(Base):
     model_config = ConfigDict(from_attributes=True)
+
+
+class Delete(BaseModel):
+    success: bool = True
+
+
+class CreateResponse(BaseModel):
+    success: bool = True
 
 
 class Filters(core.schemas.BaseFilters):
@@ -28,6 +36,7 @@ class Filters(core.schemas.BaseFilters):
 
 
 class SortFields(enum.StrEnum):
+    TICKER = "ticker"
     NAME = "name"
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"

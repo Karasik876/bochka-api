@@ -10,27 +10,31 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.post(
     "/instrument",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
-    response_model=schemas.instruments.Read,
+    response_model=schemas.instruments.CreateResponse,
 )
 async def create_instrument(
     instrument: schemas.instruments.Create,
     instruments_service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return await instruments_service.create(uow, instrument)
+    return schemas.instruments.CreateResponse(
+        success=bool(await instruments_service.create(uow, instrument))
+    )
 
 
 @router.delete(
-    "/instrument/{ticker}", dependencies=[Depends(dependencies.permissions.get_admin_user)]
+    "/instrument/{ticker}",
+    dependencies=[Depends(dependencies.permissions.get_admin_user)],
+    response_model=schemas.instruments.Delete,
 )
 async def delete_instrument(
     ticker: str,
     service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return {"success": await service.delete_by_id(uow, ticker)}
+    return schemas.instruments.Delete(success=await service.delete_by_id(uow, ticker))
 
 
 @router.delete("/user/{user_id}", dependencies=[Depends(dependencies.permissions.get_admin_user)])
