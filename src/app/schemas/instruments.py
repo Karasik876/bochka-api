@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src import core
 
+Ticker = Annotated[str, Field(pattern="^[A-Z]{2,10}$")]
+
 
 class Base(BaseModel):
-    ticker: Annotated[str, Field(pattern="^[A-Z]{2,10}$")]
+    ticker: Ticker
     name: Annotated[str, Field(max_length=255)]
 
 

@@ -5,9 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from src import core
 
+from . import instruments as instruments_schemas
+
 
 class Base(BaseModel):
-    ticker: Annotated[str, Field(pattern="^[A-Z]{2,10}$")]
+    ticker: instruments_schemas.Ticker
     amount: Annotated[int, Field(ge=0)]
 
 
@@ -42,12 +44,11 @@ class BalanceReadManyParams(Filters, SortParams, core.schemas.PaginationParams):
     pass
 
 
-Ticker = Annotated[str, Field(pattern="^[A-Z]{2,10}$")]
 Amount = Annotated[int, Field(ge=0)]
 
 
-class Response(RootModel[dict[Ticker, Amount]]):
-    root: dict[Ticker, Amount]
+class Response(RootModel[dict[instruments_schemas.Ticker, Amount]]):
+    root: dict[instruments_schemas.Ticker, Amount]
 
     model_config = ConfigDict(
         json_schema_extra={"example": {"MEMCOIN": 0, "DODGE": 100500, "BITCOIN": 42}}
