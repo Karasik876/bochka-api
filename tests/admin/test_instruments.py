@@ -10,19 +10,6 @@ from src.app.models import Instrument
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-async def test_delete_instrument_failed_401(
-    db_session: AsyncSession,
-    client: AsyncClient,
-):
-    ticker = "FAKE"
-
-    response = await client.delete(f"/admin/instrument/{ticker}")
-
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-    assert response.json().get("error_code") == "authentication_failed"
-
-
 async def test_create_instrument_success(
     db_session: AsyncSession,
     admin_client: AsyncClient,
@@ -43,6 +30,19 @@ async def test_create_instrument_success(
     assert isinstance(instr, Instrument)
     assert instr.ticker == "USD"
     assert instr.name == "Доллар США"
+
+
+async def test_delete_instrument_failed_401(
+    db_session: AsyncSession,
+    client: AsyncClient,
+):
+    ticker = "FAKE"
+
+    response = await client.delete(f"/admin/instrument/{ticker}")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    assert response.json().get("error_code") == "authentication_failed"
 
 
 async def test_create_instrument_duplicate(

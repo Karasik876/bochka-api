@@ -17,8 +17,8 @@ postgres_manager = core.db.get_postgres_manager()
 
 @pytest.fixture(scope="session", autouse=True)
 def app_client():
-    with TestClient(src.app.create_app()) as client:
-        yield client
+    with TestClient(src.app.create_app()):
+        yield
 
 
 @pytest.fixture(scope="session")
@@ -60,6 +60,8 @@ async def client(
         base_url="http://test/api/v1",
     ) as client:
         yield client
+
+    app.dependency_overrides = {}
 
 
 @pytest.fixture(scope="function")
