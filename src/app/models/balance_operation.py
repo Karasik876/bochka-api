@@ -1,7 +1,8 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, Enum, ForeignKey, Integer, String
+from sqlalchemy import UUID, CheckConstraint, ForeignKey, String
+from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
 
@@ -21,19 +22,26 @@ class BalanceOperation(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftD
     __tablename__ = "balance_operations"
     repr_cols = ("id", "user_id", "ticker")
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
+    __table_args__ = (CheckConstraint("amount > 0", name="check_operation_amount_positive"),)
+
+    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True, default=uuid7)
     user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UUID(),
         ForeignKey("users.id"),
         nullable=False,
     )
     ticker: Mapped[str] = mapped_column(
         String(10),
         ForeignKey("instruments.ticker"),
-        nullable=False,
     )
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    operation_type: Mapped[OperationType] = mapped_column(Enum(OperationType), nullable=False)
+    amount: Mapped[int]
+    operation_type: Mapped[OperationType] = mapped_column(
+        SQLAlchemyEnum(
+            OperationType,
+            name="operationtype",
+            values_callable=lambda enum_class: [member.value for member in enum_class],
+        )
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="operations")
     instrument: Mapped["Instrument"] = relationship(

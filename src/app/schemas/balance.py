@@ -5,12 +5,14 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from src import core
 
-from . import instruments as instruments_schemas
+from . import instruments as instrument_schemas
+
+BalanceOperationAmount = Annotated[int, Field(gt=0)]
 
 
 class Base(BaseModel):
-    ticker: instruments_schemas.Ticker
-    amount: Annotated[int, Field(ge=0)]
+    ticker: instrument_schemas.Ticker
+    amount: BalanceOperationAmount
 
 
 class Create(Base):
@@ -26,7 +28,9 @@ class Read(Base):
 
 
 class Filters(core.schemas.BaseFilters):
-    pass
+    ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
+    amount_from: BalanceOperationAmount
+    amount_to: BalanceOperationAmount
 
 
 class SortFields(enum.StrEnum):
@@ -44,11 +48,11 @@ class BalanceReadManyParams(Filters, SortParams, core.schemas.PaginationParams):
     pass
 
 
-Amount = Annotated[int, Field(ge=0)]
+BalanceAmount = Annotated[int, Field(ge=0)]
 
 
-class Response(RootModel[dict[instruments_schemas.Ticker, Amount]]):
-    root: dict[instruments_schemas.Ticker, Amount]
+class Response(RootModel[dict[instrument_schemas.Ticker, BalanceAmount]]):
+    root: dict[instrument_schemas.Ticker, BalanceAmount]
 
     model_config = ConfigDict(
         json_schema_extra={"example": {"MEMCOIN": 0, "DODGE": 100500, "BITCOIN": 42}}

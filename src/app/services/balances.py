@@ -24,6 +24,8 @@ class Balances(
             filters_schema=schemas.balance.Filters,
         )
 
-    async def get_user_balances(self, uow: core.uow.UnitOfWork, user_id: UUID):
+    async def get_user_balances(
+        self, uow: core.uow.UnitOfWork, user_id: UUID
+    ) -> schemas.balance.Response:
         balances = await self.repo.get_user_balances(uow, user_id)
         return schemas.balance.Response.model_validate(balances)

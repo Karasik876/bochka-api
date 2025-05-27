@@ -1,7 +1,8 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, Enum, ForeignKey, Integer, String
+from sqlalchemy import UUID, CheckConstraint, ForeignKey, String
+from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
 
@@ -33,27 +34,48 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "orders"
     repr_cols = ("id", "user_id", "ticker")
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
+    __table_args__ = (
+        CheckConstraint("qty >= 1", name="check_qty_constraint"),
+        CheckConstraint("price > 0", name="check_price_positive"),
+        CheckConstraint("filled >= 0", name="check_filled_non_negative"),
+    )
+
+    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True, default=uuid7)
     user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UUID(),
         ForeignKey("users.id"),
-        nullable=False,
     )
     status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus),
+        SQLAlchemyEnum(
+            OrderStatus,
+            name="orderstatus",
+            values_callable=lambda enum_class: [member.value for member in enum_class],
+        ),
         default=OrderStatus.NEW,
-        nullable=False,
     )
-    direction: Mapped[Direction] = mapped_column(Enum(Direction), nullable=False)
+    direction: Mapped[Direction] = mapped_column(
+        SQLAlchemyEnum(
+            Direction,
+            name="orderdirection",
+            values_callable=lambda enum_class: [member.value for member in enum_class],
+        )
+    )
+
     ticker: Mapped[str] = mapped_column(
         String(10),
         ForeignKey("instruments.ticker"),
-        nullable=False,
     )
-    qty: Mapped[int] = mapped_column(Integer, nullable=False)
-    price: Mapped[int] = mapped_column(Integer)
-    order_type: Mapped[OrderType] = mapped_column(Enum(OrderType), nullable=False)
-    filled: Mapped[int] = mapped_column(Integer, default=0)
+
+    qty: Mapped[int]
+    price: Mapped[int]
+    order_type: Mapped[OrderType] = mapped_column(
+        SQLAlchemyEnum(
+            OrderType,
+            name="ordertype",
+            values_callable=lambda enum_class: [member.value for member in enum_class],
+        )
+    )
+    filled: Mapped[int] = mapped_column(default=0)
 
     user: Mapped["User"] = relationship("User", back_populates="orders")
     instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="orders")
@@ -62,14 +84,17 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 class Transaction(core.models.sqlalchemy.Base):
     __tablename__ = "transactions"
     repr_cols = ("id", "ticker", "amount")
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="check_transaction_amount_positive"),
+        CheckConstraint("price >= 0", name="check_price_transaction_non_negative"),
+    )
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True)
     ticker: Mapped[str] = mapped_column(
         String(10),
         ForeignKey("instruments.ticker"),
-        nullable=False,
     )
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount: Mapped[int]
+    price: Mapped[int]
 
     instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="transactions")

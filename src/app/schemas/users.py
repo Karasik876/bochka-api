@@ -9,24 +9,26 @@ from src.app import models
 
 settings = core.config.get_settings()
 
+UserName = Annotated[str, Field(min_length=3, max_length=255)]
+
 
 class Base(BaseModel):
-    name: Annotated[str, Field(min_length=3, max_length=255)]
+    name: UserName
 
 
 class Create(Base):
     pass
 
 
-class Update(Base):
-    pass
+class Update(BaseModel):
+    name: UserName | None = None
 
 
 class Read(Base):
     id: UUID
     role: models.UserRole
 
-    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Filters(core.schemas.BaseFilters):

@@ -1,7 +1,8 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, Enum, String
+from sqlalchemy import UUID, String
+from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
 
@@ -24,9 +25,16 @@ class User(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "users"
     repr_cols = ("id", "name", "role")
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid7)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.USER)
+    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True, default=uuid7)
+    name: Mapped[str] = mapped_column(String(255))
+    role: Mapped[UserRole] = mapped_column(
+        SQLAlchemyEnum(
+            UserRole,
+            name="userrole",
+            values_callable=lambda enum_class: [member.value for member in enum_class],
+        ),
+        default=UserRole.USER,
+    )
 
     balances: Mapped[list["Balance"]] = relationship("Balance", back_populates="user")
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")

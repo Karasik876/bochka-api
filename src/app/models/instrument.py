@@ -16,7 +16,7 @@ class Instrument(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete)
     repr_cols = ("ticker", "name")
 
     ticker: Mapped[str] = mapped_column(String(10), primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255))
 
     balances: Mapped[list["Balance"]] = relationship("Balance", back_populates="instrument")
     balance_operations: Mapped[list["BalanceOperation"]] = relationship(

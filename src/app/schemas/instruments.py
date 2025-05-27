@@ -6,11 +6,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from src import core
 
 Ticker = Annotated[str, Field(pattern="^[A-Z]{2,10}$")]
+InstrumentName = Annotated[str, Field(max_length=255)]
 
 
 class Base(BaseModel):
     ticker: Ticker
-    name: Annotated[str, Field(max_length=255)]
+    name: InstrumentName
 
 
 class Create(Base):
@@ -18,7 +19,7 @@ class Create(Base):
 
 
 class Update(BaseModel):
-    name: Annotated[str, Field(max_length=255)]
+    name: InstrumentName | None = None
 
 
 class Read(Base):
