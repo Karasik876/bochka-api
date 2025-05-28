@@ -27,12 +27,13 @@ class Update(Base):
 
 
 class Read(Base):
+    operation_type: models.balance_operation.OperationType
     model_config = ConfigDict(from_attributes=True)
 
 
 class Filters(core.schemas.BaseFilters):
-    user_id: str | None = None
-    ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
+    user_id: UUID | None = None
+    ticker: instrument_schemas.Ticker | None = None
     amount_from: BalanceOperationAmount | None = None
     amount_to: BalanceOperationAmount | None = None
     operation_type: models.balance_operation.OperationType | None = None
