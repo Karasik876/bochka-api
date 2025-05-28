@@ -15,14 +15,15 @@ settings = core.config.get_settings()
 LimitOrderPrice = Annotated[int, Field(gt=0)]
 
 
-class OrderBase(BaseModel):
+class Base(BaseModel):
     direction: models.order.Direction
     ticker: instrument_schemas.Ticker
     qty: Annotated[int, Field(ge=1)]
 
 
-class OrderRead(OrderBase):
+class Read(Base):
     id: UUID
+    order_type: models.order.OrderType
     status: models.order.OrderStatus
     user_id: UUID
     created_at: Annotated[datetime, Field(serialization_alias="timestamp")]
@@ -30,29 +31,26 @@ class OrderRead(OrderBase):
     model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
 
 
-class LimitOrderBody(OrderBase):
+class Create(Base):
+    price: Annotated[int, Field(gt=0)]
+
+
+class CreateSuccess(BaseModel):
+    success: bool = True
+    order_id: UUID
+
+
+class Update(BaseModel):
+    price: Annotated[int, Field(gt=0)]
+    qty: Annotated[int, Field(ge=1)]
+
+
+class LimitRead(Base):
     price: LimitOrderPrice
 
 
-class LimitOrderUpdate(BaseModel):
-    pass
-
-
-class LimitOrderRead(OrderRead):
-    filled: int = 0
-    body: LimitOrderBody
-
-
-class MarketOrderBody(OrderBase):
-    pass
-
-
-class MarketOrderUpdate(BaseModel):
-    pass
-
-
-class MarketOrderRead(OrderRead):
-    body: MarketOrderBody
+class MarketRead(Base):
+    price: LimitOrderPrice
 
 
 class Filters(core.schemas.BaseFilters):
