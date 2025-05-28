@@ -2,7 +2,6 @@ import random
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
-from fastapi.responses import ORJSONResponse
 
 from src import core
 from src.app import models, schemas
@@ -60,12 +59,16 @@ async def delete_user(
     )
 
 
-@router.post("/balance/deposit", dependencies=[Depends(dependencies.permissions.get_current_user)])
+@router.post(
+    "/balance/deposit",
+    dependencies=[Depends(dependencies.permissions.get_current_user)],
+    response_model=schemas.balance_operations.OperationSuccess,
+)
 async def deposit(
     uow: dependencies.uow.Postgres,
     balance_operation: schemas.balance_operations.Create,
     balance_service: dependencies.services.Balances,
-    operation_service: dependencies.services.BalanceOperations,
+    balance_operation_service: dependencies.services.BalanceOperations,
     user_service: dependencies.services.Users,
     instrument_service: dependencies.services.Instruments,
 ):
@@ -91,16 +94,20 @@ async def deposit(
             additional_data={"user_id": balance_operation.user_id},
         )
 
-    await operation_service.create(
+    await balance_operation_service.create(
         uow,
         balance_operation,
         additional_data={"operation_type": models.balance_operation.OperationType.DEPOSIT},
     )
 
-    return ORJSONResponse(status_code=status.HTTP_200_OK, content={"success": True})
+    return schemas.balance_operations.OperationSuccess(success=True)
 
 
-@router.post("/balance/withdraw", dependencies=[Depends(dependencies.permissions.get_admin_user)])
+@router.post(
+    "/balance/withdraw",
+    dependencies=[Depends(dependencies.permissions.get_admin_user)],
+    response_model=schemas.balance_operations.OperationSuccess,
+)
 async def withdraw(
     uow: dependencies.uow.Postgres,
     balance_operation: schemas.balance_operations.Create,
@@ -134,4 +141,4 @@ async def withdraw(
         additional_data={"operation_type": models.balance_operation.OperationType.WITHDRAW},
     )
 
-    return ORJSONResponse(status_code=status.HTTP_200_OK, content={"success": True})
+    return schemas.balance_operations.OperationSuccess(success=True)

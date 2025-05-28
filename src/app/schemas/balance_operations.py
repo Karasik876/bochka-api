@@ -31,6 +31,10 @@ class Read(Base):
     model_config = ConfigDict(from_attributes=True)
 
 
+class OperationSuccess(BaseModel):
+    success: bool = True
+
+
 class Filters(core.schemas.BaseFilters):
     user_id: UUID | None = None
     ticker: instrument_schemas.Ticker | None = None
