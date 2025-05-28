@@ -1,9 +1,11 @@
 import enum
 from typing import Annotated
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from src import core
+from src.app import models
 
 from . import instruments as instrument_schemas
 
@@ -11,6 +13,7 @@ BalanceOperationAmount = Annotated[int, Field(gt=0)]
 
 
 class Base(BaseModel):
+    user_id: UUID
     ticker: instrument_schemas.Ticker
     amount: BalanceOperationAmount
 
@@ -19,8 +22,8 @@ class Create(Base):
     pass
 
 
-class Update(BaseModel):
-    amount: BalanceOperationAmount | None
+class Update(Base):
+    pass
 
 
 class Read(Base):
@@ -28,14 +31,18 @@ class Read(Base):
 
 
 class Filters(core.schemas.BaseFilters):
+    user_id: str | None = None
     ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
-    amount_from: BalanceOperationAmount
-    amount_to: BalanceOperationAmount
+    amount_from: BalanceOperationAmount | None = None
+    amount_to: BalanceOperationAmount | None = None
+    operation_type: models.balance_operation.OperationType | None = None
 
 
 class SortFields(enum.StrEnum):
+    USER_ID = "user_id"
     TICKER = "ticker"
     AMOUNT = "amount"
+    OPERATION_TYPE = "operation_type"
     CREATED_AT = "created_at"
     UPDATED_AT = "updated_at"
 
@@ -44,16 +51,5 @@ class SortParams(core.schemas.SortParams):
     sort_by: SortFields | None = None
 
 
-class BalanceReadManyParams(Filters, SortParams, core.schemas.PaginationParams):
+class BalanceOperationReadManyParams(Filters, SortParams, core.schemas.PaginationParams):
     pass
-
-
-BalanceAmount = Annotated[int, Field(ge=0)]
-
-
-class Response(RootModel[dict[instrument_schemas.Ticker, BalanceAmount]]):
-    root: dict[instrument_schemas.Ticker, BalanceAmount]
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"MEMCOIN": 0, "DODGE": 100500, "BITCOIN": 42}}
-    )

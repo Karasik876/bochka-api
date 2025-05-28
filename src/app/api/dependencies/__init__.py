@@ -1,3 +1,10 @@
-from . import permissions, queries, services, uow
+from . import error_handlers, exceptions, permissions, queries, services, uow
 
-__all__ = ["permissions", "queries", "services", "uow"]
+__all__ = [
+    "error_handlers",
+    "exceptions",
+    "permissions",
+    "queries",
+    "services",
+    "uow",
+]

@@ -87,6 +87,17 @@ async def admin_user(db_session: AsyncSession) -> models.User:
 
 
 @pytest.fixture(scope="function")
+async def instrument(db_session: AsyncSession) -> models.Instrument:
+    instrument = models.Instrument(
+        ticker="BB",
+        name="Bobrito Bandito",
+    )
+    db_session.add(instrument)
+    await db_session.flush()
+    return instrument
+
+
+@pytest.fixture(scope="function")
 def user_client(client: AsyncClient, user: models.User) -> AsyncClient:
     app.dependency_overrides[dependencies.permissions.get_current_user] = (
         lambda: schemas.users.Read.model_validate(user)

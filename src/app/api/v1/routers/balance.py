@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from src.app import schemas
 from src.app.api import dependencies
@@ -16,13 +16,3 @@ async def get_balance(
     service: dependencies.services.Balances,
 ):
     return await service.get_user_balances(uow, current_user.id)
-
-
-@router.post("/deposit", dependencies=[Depends(dependencies.permissions.get_current_user)])
-async def deposit():
-    raise NotImplementedError
-
-
-@router.post("/withdraw", dependencies=[Depends(dependencies.permissions.get_current_user)])
-async def withdraw():
-    raise NotImplementedError

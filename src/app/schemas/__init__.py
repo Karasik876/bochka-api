@@ -1,3 +1,3 @@
-from . import balance, instruments, users
+from . import balance, balance_operations, instruments, users
 
-__all__ = ["balance", "instruments", "users"]
+__all__ = ["balance", "balance_operations", "instruments", "users"]

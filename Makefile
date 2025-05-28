@@ -81,7 +81,7 @@ down-prod:
 	$(DOCKER_COMPOSE_PROD) down
 
 up-tests:
-	$(DOCKER_COMPOSE_TEST) up -d --build
+	$(DOCKER_COMPOSE_TEST) up --build
 
 down-tests:
 	$(DOCKER_COMPOSE_TEST) down
