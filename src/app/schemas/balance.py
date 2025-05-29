@@ -1,5 +1,6 @@
 import enum
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -28,9 +29,10 @@ class Read(Base):
 
 
 class Filters(core.schemas.BaseFilters):
+    user_id: list[UUID] | UUID | None = None
     ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
-    amount_from: BalanceOperationAmount
-    amount_to: BalanceOperationAmount
+    amount_from: BalanceOperationAmount | None = None
+    amount_to: BalanceOperationAmount | None = None
 
 
 class SortFields(enum.StrEnum):

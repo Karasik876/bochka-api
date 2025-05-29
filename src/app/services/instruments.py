@@ -21,3 +21,6 @@ class Instruments(
             update_schema=schemas.instruments.Update,
             filters_schema=schemas.instruments.Filters,
         )
+
+    async def get_all_tickers(self, uow: core.UnitOfWork) -> list[str]:
+        return list(await self.repo.get_all_tickers(uow))

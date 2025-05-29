@@ -18,9 +18,9 @@ class Authentication:
         self.logger = logging.getLogger(f"services.{self.__class__.__name__.lower()}")
 
     async def auth_user(
-        self, uow: core.UnitOfWork, telegram_data: schemas.users.Create
+        self, uow: core.UnitOfWork, create_schema: schemas.users.Create
     ) -> schemas.users.Auth:
-        user = await self._get_or_create_user(uow, telegram_data)
+        user = await self._get_or_create_user(uow, create_schema)
         token = self.encode_token({"user_id": str(user.id)})
         return schemas.users.Auth(id=user.id, name=user.name, role=user.role, api_key=token)
 

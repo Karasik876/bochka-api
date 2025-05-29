@@ -23,6 +23,14 @@ async def get_instruments(
     return await service.read_many(uow)
 
 
+@router.get("/instrument/tickers")
+async def get_instruments_tickers(
+    service: dependencies.services.Instruments,
+    uow: dependencies.uow.Postgres,
+):
+    return await service.get_all_tickers(uow)
+
+
 @router.get("/orderbook/{ticker}")
 async def get_orderbook(ticker: str):
     raise NotImplementedError
