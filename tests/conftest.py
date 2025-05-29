@@ -72,6 +72,7 @@ async def user(db_session: AsyncSession) -> models.User:
     )
     db_session.add(user)
     await db_session.flush()
+    await db_session.refresh(user)
     return user
 
 
@@ -83,18 +84,8 @@ async def admin_user(db_session: AsyncSession) -> models.User:
     )
     db_session.add(admin)
     await db_session.flush()
+    await db_session.refresh(admin)
     return admin
-
-
-@pytest.fixture(scope="function")
-async def instrument(db_session: AsyncSession) -> models.Instrument:
-    instrument = models.Instrument(
-        ticker="BB",
-        name="Bobrito Bandito",
-    )
-    db_session.add(instrument)
-    await db_session.flush()
-    return instrument
 
 
 @pytest.fixture(scope="function")
@@ -111,3 +102,30 @@ def admin_client(client: AsyncClient, admin_user: models.User) -> AsyncClient:
         lambda: schemas.users.Read.model_validate(admin_user)
     )
     return client
+
+
+@pytest.fixture(scope="function")
+async def instrument(db_session: AsyncSession) -> models.Instrument:
+    instrument = models.Instrument(
+        ticker="BB",
+        name="Bobrito Bandito",
+    )
+    db_session.add(instrument)
+    await db_session.flush()
+    await db_session.refresh(instrument)
+    return instrument
+
+
+@pytest.fixture(scope="function")
+async def balance(
+    db_session: AsyncSession, admin_user: models.User, instrument: models.Instrument
+) -> models.Balance:
+    balance = models.Balance(
+        user_id=admin_user.id,
+        ticker=instrument.ticker,
+        amount=1000,
+    )
+    db_session.add(balance)
+    await db_session.flush()
+    await db_session.refresh(balance)
+    return balance

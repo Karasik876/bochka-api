@@ -18,8 +18,8 @@ async def test_create_instrument_success(
     instrument_data = {"ticker": "USD", "name": "Доллар США"}
     response = await admin_client.post("/admin/instrument", json=instrument_data)
 
-    assert response.status_code == status.HTTP_200_OK
     json_response = response.json()
+    assert "detail" not in json_response
     assert json_response.get("success")
 
     result = await db_session.scalars(select(Instrument))

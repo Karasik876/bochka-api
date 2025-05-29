@@ -61,7 +61,7 @@ async def delete_user(
 
 @router.post(
     "/balance/deposit",
-    dependencies=[Depends(dependencies.permissions.get_current_user)],
+    dependencies=[Depends(dependencies.permissions.get_admin_user)],
     response_model=schemas.balance_operations.OperationSuccess,
 )
 async def deposit(
