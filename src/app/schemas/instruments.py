@@ -1,5 +1,6 @@
 import enum
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,6 +24,13 @@ class Update(BaseModel):
 
 
 class Read(Base):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReadTicker(BaseModel):
+    id: UUID
+    ticker: Ticker
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -17,7 +17,7 @@ async def get_balance(
     balances_service: dependencies.services.Balances,
     instruments_service: dependencies.services.Instruments,
 ):
-    all_tickers = await instruments_service.get_all_tickers(uow)
+    all_instruments = await instruments_service.get_all_instruments(uow)
 
     user_balances = await balances_service.read_many(
         uow,
@@ -25,6 +25,9 @@ async def get_balance(
         pagination=PaginationParams(limit=1000),
     )
 
-    user_balances_dict = {balance.ticker: balance.amount for balance in user_balances}
+    user_balances_dict = {balance.instrument_id: balance.amount for balance in user_balances}
 
-    return {ticker: user_balances_dict.get(ticker, 0) for ticker in all_tickers}
+    return {
+        instrument.ticker: user_balances_dict.get(instrument.id, 0)
+        for instrument in all_instruments
+    }

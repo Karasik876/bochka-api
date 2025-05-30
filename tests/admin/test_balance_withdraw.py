@@ -38,7 +38,7 @@ async def test_withdraw_success(
 
     operation = await db_session.scalar(
         select(models.BalanceOperation).filter_by(
-            user_id=admin_user.id, ticker=instrument.ticker, amount=withdraw_amount
+            user_id=admin_user.id, instrument_id=instrument.id, amount=withdraw_amount
         )
     )
 

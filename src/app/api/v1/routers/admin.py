@@ -32,11 +32,11 @@ async def create_instrument(
     response_model=schemas.instruments.Delete,
 )
 async def delete_instrument(
-    ticker: str,
+    ticker: schemas.instruments.Ticker,
     service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return schemas.instruments.Delete(success=await service.delete_by_id(uow, ticker))
+    return schemas.instruments.Delete(success=await service.delete_by_ticker(uow, ticker))
 
 
 @router.delete(
@@ -66,38 +66,43 @@ async def delete_user(
 )
 async def deposit(
     uow: dependencies.uow.Postgres,
-    balance_operation: schemas.balance_operations.Create,
+    balance_operation: schemas.balance_operations.CreateRequest,
     balance_service: dependencies.services.Balances,
     balance_operation_service: dependencies.services.BalanceOperations,
     user_service: dependencies.services.Users,
     instrument_service: dependencies.services.Instruments,
 ):
     await user_service.read_by_id(uow, balance_operation.user_id)
-    await instrument_service.read_by_id(uow, balance_operation.ticker)
+    instrument = await instrument_service.read_by_ticker(uow, balance_operation.ticker)
 
     try:
         balance = await balance_service.read_by_id(
-            uow, {"user_id": balance_operation.user_id, "ticker": balance_operation.ticker}
+            uow, {"user_id": balance_operation.user_id, "instrument_id": instrument.id}
         )
 
         await balance_service.update_by_id(
             uow,
-            {"user_id": balance_operation.user_id, "ticker": balance_operation.ticker},
+            {"user_id": balance_operation.user_id, "instrument_id": instrument.id},
             schemas.balance.Update(amount=balance.amount + balance_operation.amount),
         )
     except core.services.exceptions.EntityNotFoundError:
         await balance_service.create(
             uow,
             schemas.balance.Create(
-                ticker=balance_operation.ticker, amount=balance_operation.amount
+                user_id=balance_operation.user_id,
+                amount=balance_operation.amount,
+                instrument_id=instrument.id,
             ),
-            additional_data={"user_id": balance_operation.user_id},
         )
 
     await balance_operation_service.create(
         uow,
-        balance_operation,
-        additional_data={"operation_type": models.balance_operation.OperationType.DEPOSIT},
+        schemas.balance_operations.Create(
+            user_id=balance_operation.user_id,
+            amount=balance_operation.amount,
+            instrument_id=instrument.id,
+            operation_type=models.balance_operation.OperationType.DEPOSIT,
+        ),
     )
 
     return schemas.balance_operations.OperationSuccess(success=True)
@@ -110,18 +115,18 @@ async def deposit(
 )
 async def withdraw(
     uow: dependencies.uow.Postgres,
-    balance_operation: schemas.balance_operations.Create,
+    balance_operation: schemas.balance_operations.CreateRequest,
     balance_service: dependencies.services.Balances,
     operation_service: dependencies.services.BalanceOperations,
     user_service: dependencies.services.Users,
     instrument_service: dependencies.services.Instruments,
 ):
     await user_service.read_by_id(uow, balance_operation.user_id)
-    await instrument_service.read_by_id(uow, balance_operation.ticker)
+    instrument = await instrument_service.read_by_ticker(uow, balance_operation.ticker)
 
     try:
         balance = await balance_service.read_by_id(
-            uow, {"user_id": balance_operation.user_id, "ticker": balance_operation.ticker}
+            uow, {"user_id": balance_operation.user_id, "instrument_id": instrument.id}
         )
 
         if balance.amount < balance_operation.amount:
@@ -129,7 +134,7 @@ async def withdraw(
 
         await balance_service.update_by_id(
             uow,
-            {"user_id": balance_operation.user_id, "ticker": balance_operation.ticker},
+            {"user_id": balance_operation.user_id, "instrument_id": instrument.id},
             schemas.balance.Update(amount=balance.amount - balance_operation.amount),
         )
     except core.services.exceptions.EntityNotFoundError:
@@ -137,8 +142,12 @@ async def withdraw(
 
     await operation_service.create(
         uow,
-        balance_operation,
-        additional_data={"operation_type": models.balance_operation.OperationType.WITHDRAW},
+        schemas.balance_operations.Create(
+            user_id=balance_operation.user_id,
+            amount=balance_operation.amount,
+            instrument_id=instrument.id,
+            operation_type=models.balance_operation.OperationType.WITHDRAW,
+        ),
     )
 
     return schemas.balance_operations.OperationSuccess(success=True)

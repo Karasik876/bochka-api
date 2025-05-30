@@ -33,7 +33,7 @@ async def test_deposit_success_new_balance(
 
     # Check balance was created
     balance = await db_session.scalar(
-        select(models.Balance).filter_by(user_id=admin_user.id, ticker=instrument.ticker)
+        select(models.Balance).filter_by(user_id=admin_user.id, instrument_id=instrument.id)
     )
     assert balance is not None
     assert balance.amount == amount_test
@@ -42,7 +42,7 @@ async def test_deposit_success_new_balance(
     operation = await db_session.scalar(
         select(models.BalanceOperation).filter_by(
             user_id=admin_user.id,
-            ticker=instrument.ticker,
+            instrument_id=instrument.id,
         )
     )
     assert operation is not None
@@ -78,7 +78,7 @@ async def test_deposit_success_existing_balance(
     operation = await db_session.scalar(
         select(models.BalanceOperation).filter_by(
             user_id=admin_user.id,
-            ticker=instrument.ticker,
+            instrument_id=instrument.id,
             amount=deposit_amount,
         )
     )
@@ -186,7 +186,7 @@ async def test_admin_can_deposit_to_user(
     assert json_response["success"]
 
     balance = await db_session.scalar(
-        select(models.Balance).filter_by(user_id=user.id, ticker=instrument.ticker)
+        select(models.Balance).filter_by(user_id=user.id, instrument_id=instrument.id)
     )
     assert balance is not None
     assert balance.amount == amount_test
@@ -194,7 +194,7 @@ async def test_admin_can_deposit_to_user(
     operation = await db_session.scalar(
         select(models.BalanceOperation).filter_by(
             user_id=user.id,
-            ticker=instrument.ticker,
+            instrument_id=instrument.id,
         )
     )
     assert operation is not None

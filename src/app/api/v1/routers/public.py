@@ -28,7 +28,7 @@ async def get_instruments_tickers(
     service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return await service.get_all_tickers(uow)
+    return await service.get_all_instruments(uow)
 
 
 @router.get("/orderbook/{ticker}")

@@ -14,15 +14,19 @@ BalanceOperationAmount = Annotated[int, Field(gt=0)]
 
 class Base(BaseModel):
     user_id: UUID
-    ticker: instrument_schemas.Ticker
     amount: BalanceOperationAmount
 
 
+class CreateRequest(Base):
+    ticker: instrument_schemas.Ticker
+
+
 class Create(Base):
-    pass
+    instrument_id: UUID
+    operation_type: models.balance_operation.OperationType
 
 
-class Update(Base):
+class Update(BaseModel):
     pass
 
 

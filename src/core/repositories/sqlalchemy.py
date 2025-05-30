@@ -216,9 +216,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             if issubclass(self.model, models.sqlalchemy.SoftDelete):
                 if instance.deleted_at is None:
                     instance.deleted_at = func.timezone("UTC", func.now())
-                    await session.flush()
 
                     await self._soft_delete_cascades(uow, instance)
+                    await session.flush()
                 return True
 
             await session.delete(instance)

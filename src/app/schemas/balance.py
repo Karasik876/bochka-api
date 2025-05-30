@@ -12,8 +12,9 @@ BalanceOperationAmount = Annotated[int, Field(gt=0)]
 
 
 class Base(BaseModel):
-    ticker: instrument_schemas.Ticker
+    user_id: UUID
     amount: BalanceOperationAmount
+    instrument_id: UUID
 
 
 class Create(Base):

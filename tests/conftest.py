@@ -122,7 +122,7 @@ async def balance(
 ) -> models.Balance:
     balance = models.Balance(
         user_id=admin_user.id,
-        ticker=instrument.ticker,
+        instrument_id=instrument.id,
         amount=1000,
     )
     db_session.add(balance)

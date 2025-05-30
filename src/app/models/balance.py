@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, CheckConstraint, ForeignKey, String
+from sqlalchemy import UUID, CheckConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src import core
@@ -16,15 +16,9 @@ class Balance(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 
     __table_args__ = (CheckConstraint("amount >= 0", name="check_balance_amount_non_negative"),)
 
-    user_id: Mapped[UUID] = mapped_column(
-        UUID(),
-        ForeignKey("users.id"),
-        primary_key=True,
-    )
-    ticker: Mapped[str] = mapped_column(
-        String(10),
-        ForeignKey("instruments.ticker"),
-        primary_key=True,
+    user_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("users.id"), primary_key=True)
+    instrument_id: Mapped[UUID] = mapped_column(
+        UUID, ForeignKey("instruments.id"), primary_key=True
     )
     amount: Mapped[int] = mapped_column(default=0)
 

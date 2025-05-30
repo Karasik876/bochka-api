@@ -25,7 +25,7 @@ class User(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "users"
     repr_cols = ("id", "name", "role")
 
-    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True, default=uuid7)
+    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid7)
     name: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
         SQLAlchemyEnum(

@@ -1,7 +1,7 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, CheckConstraint, ForeignKey, String
+from sqlalchemy import UUID, CheckConstraint, ForeignKey
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
@@ -40,9 +40,9 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
         CheckConstraint("filled >= 0", name="check_filled_non_negative"),
     )
 
-    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True, default=uuid7)
+    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid7)
     user_id: Mapped[UUID] = mapped_column(
-        UUID(),
+        UUID,
         ForeignKey("users.id"),
     )
     status: Mapped[OrderStatus] = mapped_column(
@@ -61,10 +61,7 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
         )
     )
 
-    ticker: Mapped[str] = mapped_column(
-        String(10),
-        ForeignKey("instruments.ticker"),
-    )
+    instrument_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("instruments.id"))
 
     qty: Mapped[int]
     price: Mapped[int]
@@ -89,11 +86,8 @@ class Transaction(core.models.sqlalchemy.Base):
         CheckConstraint("price >= 0", name="check_price_transaction_non_negative"),
     )
 
-    id: Mapped[UUID] = mapped_column(UUID(), primary_key=True)
-    ticker: Mapped[str] = mapped_column(
-        String(10),
-        ForeignKey("instruments.ticker"),
-    )
+    id: Mapped[UUID] = mapped_column(UUID, primary_key=True)
+    instrument_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("instruments.id"))
     amount: Mapped[int]
     price: Mapped[int]
 
