@@ -17,7 +17,6 @@ LimitOrderPrice = Annotated[int, Field(gt=0)]
 
 class Base(BaseModel):
     direction: models.order.Direction
-    ticker: instrument_schemas.Ticker
     qty: Annotated[int, Field(ge=1)]
 
 
@@ -32,17 +31,22 @@ class Read(Base):
 
 
 class Create(Base):
-    price: Annotated[int, Field(gt=0)]
+    price: Annotated[int, Field(gt=0)] | None = None
+    ticker: instrument_schemas.Ticker
 
 
-class CreateSuccess(BaseModel):
+class SuccessResponse(BaseModel):
     success: bool = True
+
+
+class CreateSuccess(SuccessResponse):
     order_id: UUID
 
 
 class Update(BaseModel):
-    price: Annotated[int, Field(gt=0)]
-    qty: Annotated[int, Field(ge=1)]
+    price: Annotated[int, Field(gt=0)] | None = None
+    qty: Annotated[int, Field(ge=1)] | None = None
+    status: models.order.OrderStatus | None = None
 
 
 class LimitRead(Base):

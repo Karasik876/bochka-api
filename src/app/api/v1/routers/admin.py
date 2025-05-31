@@ -130,7 +130,9 @@ async def withdraw(
         )
 
         if balance.amount < balance_operation.amount:
-            raise dependencies.exceptions.NotEnoughFundsError(balance_operation.user_id)
+            raise dependencies.exceptions.NotEnoughFundsError(
+                balance_operation.user_id, instrument.ticker
+            )
 
         await balance_service.update_by_id(
             uow,
@@ -138,7 +140,9 @@ async def withdraw(
             schemas.balance.Update(amount=balance.amount - balance_operation.amount),
         )
     except core.services.exceptions.EntityNotFoundError:
-        raise dependencies.exceptions.NotEnoughFundsError(balance_operation.user_id) from None
+        raise dependencies.exceptions.NotEnoughFundsError(
+            balance_operation.user_id, instrument.ticker
+        ) from None
 
     await operation_service.create(
         uow,

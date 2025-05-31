@@ -21,13 +21,3 @@ class Orders(
             update_schema=schemas.orders.Update,
             filters_schema=schemas.orders.Filters,
         )
-
-    async def create(
-        self, uow: core.UnitOfWork, create_schema: schemas.orders.Create
-    ) -> schemas.orders.Read:
-        if create_schema.price:
-            return await super().create(
-                uow, create_schema, additional_data={"order_type": "LIMIT"}
-            )
-
-        return await super().create(uow, create_schema, additional_data={"order_type": "MARKET"})
