@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from src.app import schemas
 from src.app.api import dependencies
+from src.core.schemas import PaginationParams
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -20,7 +21,7 @@ async def get_instruments(
     service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return await service.read_many(uow)
+    return await service.read_many(uow, pagination=PaginationParams(limit=1000))
 
 
 @router.get("/instrument/tickers")
