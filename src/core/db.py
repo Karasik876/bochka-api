@@ -29,7 +29,8 @@ class PostgresManager:
         return create_async_engine(
             settings.POSTGRES.URL,
             poolclass=AsyncAdaptedQueuePool,
-            pool_recycle=900,
+            pool_recycle=300,
+            isolation_level="SERIALIZABLE",
         )
 
     def _create_session_factory(self) -> async_sessionmaker[AsyncSession]:
