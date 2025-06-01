@@ -34,12 +34,6 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "orders"
     repr_cols = ("id", "user_id", "ticker")
 
-    __table_args__ = (
-        CheckConstraint("qty >= 1", name="check_qty_constraint"),
-        CheckConstraint("price > 0", name="check_price_positive"),
-        CheckConstraint("filled >= 0", name="check_filled_non_negative"),
-    )
-
     id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid7)
     user_id: Mapped[UUID] = mapped_column(
         UUID,
@@ -64,7 +58,8 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     instrument_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("instruments.id"))
 
     qty: Mapped[int]
-    price: Mapped[int]
+    price: Mapped[int | None] = mapped_column(default=None)
+
     order_type: Mapped[OrderType] = mapped_column(
         SQLAlchemyEnum(
             OrderType,
@@ -72,10 +67,31 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
             values_callable=lambda enum_class: [member.value for member in enum_class],
         )
     )
+
+    locked_money_amount: Mapped[int | None] = mapped_column(default=None)
+    locked_instrument_amount: Mapped[int | None] = mapped_column(default=None)
+
     filled: Mapped[int] = mapped_column(default=0)
 
     user: Mapped["User"] = relationship("User", back_populates="orders")
     instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="orders")
+
+    __table_args__ = (
+        CheckConstraint("qty >= 1", name="check_qty_constraint"),
+        CheckConstraint("filled >= 0", name="check_filled_non_negative"),
+        CheckConstraint(
+            "(order_type = 'LIMIT' AND price > 0) OR (order_type = 'MARKET' AND price IS NULL)",
+            name="check_price_for_order_type",
+        ),
+        CheckConstraint(
+            "(direction = 'BUY' "
+            "AND locked_money_amount IS NOT NULL AND locked_instrument_amount IS NULL) "
+            "OR "
+            "(direction = 'SELL' "
+            "AND locked_instrument_amount IS NOT NULL AND locked_money_amount IS NULL)",
+            name="check_lock_amounts",
+        ),
+    )
 
 
 class Transaction(core.models.sqlalchemy.Base):

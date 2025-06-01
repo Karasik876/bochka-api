@@ -1,20 +1,20 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy import text
+from httpx import AsyncClient
+from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app import models
-from src.core.repositories.sqlalchemy import BaseCRUD
+from src.app import models, repositories
 from src.core.uow import UnitOfWork
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-def make_serialization_error():
+def make_serialization_error() -> OperationalError:
     class CustomError(Exception):
-        def __init__(self, pgcode):
+        def __init__(self, pgcode: str):
             super().__init__()
             self.pgcode = pgcode
 
@@ -22,39 +22,80 @@ def make_serialization_error():
     return OperationalError("serialization error", params=None, orig=orig)
 
 
-async def test_create_retries_on_serialization_error(db_session: AsyncSession):
-    instruments_repo = BaseCRUD(models.Instrument)
+async def test_create_retries_on_serialization_error(mock_uow: None, db_session: AsyncSession):
+    instruments_repo = repositories.Instruments()
 
-    attempts = [
-        make_serialization_error(),
-        make_serialization_error(),
-        None,  # success on 3rd attempt
-    ]
+    retries_number = 3
 
-    flush_mock = AsyncMock(spec=AsyncSession.flush, side_effect=attempts)
+    flush_count = 0
+    original_flush = db_session.flush
+
+    async def mocked_flush(*args, **kwargs):
+        nonlocal flush_count
+        flush_count += 1
+
+        if flush_count < retries_number:
+            raise make_serialization_error()
+
+        return await original_flush(*args, **kwargs)
+
     refresh_mock = (
         AsyncMock()
     )  # Fix to "Instance '<Instrument at 0x1f301df9550>' is not persistent within this Session"
 
     async with UnitOfWork(use_postgres=False) as uow:
-        uow._postgres_session = db_session  # noqa: SLF001
-
         with (
-            patch.object(uow.postgres_session, "flush", flush_mock),
+            patch.object(uow.postgres_session, "flush", mocked_flush),
             patch.object(uow.postgres_session, "refresh", refresh_mock),
         ):
             result = await instruments_repo.create(
                 uow, {"ticker": "TESTTEST", "name": "Test Instrument"}
             )
 
-    assert isinstance(result, models.Instrument)
-    assert result.ticker == "TESTTEST"
-    assert flush_mock.await_count == len(attempts)
+    res = await db_session.scalars(select(models.Instrument))
+    results = res.all()
+    assert len(results) == 1
+    assert getattr(results[0], "ticker", None) == "TESTTEST"
 
-    refresh_mock.assert_awaited_once()
-    refresh_mock.assert_awaited_with(result)
+    assert flush_count == retries_number
+
+    refresh_mock.assert_awaited_once_with(result)
 
 
 async def test_isolation_level_serializable(db_session: AsyncSession):
     isolation = await db_session.scalar(text("SHOW transaction_isolation"))
     assert isolation == "serializable"
+
+
+async def test_endpoint_retries_on_serialization_error(
+    admin_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+):
+    retries_number = 3
+
+    flush_count = 0
+    original_flush = db_session.flush
+
+    async def mocked_flush(*args, **kwargs):
+        nonlocal flush_count
+        flush_count += 1
+
+        if flush_count < retries_number:
+            raise make_serialization_error()
+
+        return await original_flush(*args, **kwargs)
+
+    monkeypatch.setattr(db_session, "flush", mocked_flush)
+
+    response = await admin_client.post(
+        "/admin/instrument", json={"ticker": "RETRY", "name": "Retry Test"}
+    )
+
+    assert "detail" not in response.json()
+    assert response.json()["success"]
+
+    assert flush_count == retries_number
+
+    result = await db_session.scalars(select(models.Instrument))
+    instruments = result.all()
+    assert len(instruments) == 1
+    assert instruments[0].ticker == "RETRY"

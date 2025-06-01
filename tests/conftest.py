@@ -41,10 +41,7 @@ async def db_session(setup_db_schema) -> AsyncGenerator[AsyncSession]:
 
 
 @pytest.fixture(scope="function")
-async def client(
-    monkeypatch: pytest.MonkeyPatch,
-    db_session: AsyncSession,
-) -> AsyncGenerator[AsyncClient]:
+async def mock_uow(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) -> None:  # noqa: RUF029
     async def patched_aenter(self):  # noqa: RUF029
         self._postgres_session = db_session
         return self
@@ -55,6 +52,9 @@ async def client(
     monkeypatch.setattr(core.UnitOfWork, "__aenter__", patched_aenter)
     monkeypatch.setattr(core.UnitOfWork, "__aexit__", patched_aexit)
 
+
+@pytest.fixture(scope="function")
+async def client(mock_uow: None) -> AsyncGenerator[AsyncClient]:
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test/api/v1",
