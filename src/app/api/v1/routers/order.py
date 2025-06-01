@@ -37,13 +37,19 @@ async def create_order(
 
 
 @router.get("", dependencies=[Depends(dependencies.permissions.get_current_user)])
-async def get_orders():
+async def get_my_orders():
     raise NotImplementedError
 
 
-@router.get("/{order_id}", dependencies=[Depends(dependencies.permissions.get_current_user)])
-async def get_order(order_id: UUID):
-    raise NotImplementedError
+@router.get(
+    "/{order_id}",
+    dependencies=[Depends(dependencies.permissions.get_current_user)],
+    response_model=schemas.orders.Read,
+)
+async def get_order(
+    order_id: UUID, order_service: dependencies.services.Orders, uow: dependencies.uow.Postgres
+):
+    return await order_service.read_by_id(uow, order_id)
 
 
 @router.delete(

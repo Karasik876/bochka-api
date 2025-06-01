@@ -71,14 +71,19 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     locked_money_amount: Mapped[int | None] = mapped_column(default=None)
     locked_instrument_amount: Mapped[int | None] = mapped_column(default=None)
 
-    filled: Mapped[int] = mapped_column(default=0)
+    filled: Mapped[int | None] = mapped_column(default=None)
 
     user: Mapped["User"] = relationship("User", back_populates="orders")
-    instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="orders")
+    instrument: Mapped["Instrument"] = relationship(
+        "Instrument", back_populates="orders", lazy="selectin"
+    )
 
     __table_args__ = (
         CheckConstraint("qty >= 1", name="check_qty_constraint"),
-        CheckConstraint("filled >= 0", name="check_filled_non_negative"),
+        CheckConstraint(
+            "(order_type = 'LIMIT' AND filled >= 0) OR (order_type = 'MARKET' AND filled IS NULL)",
+            name="check_filled_for_order_type",
+        ),
         CheckConstraint(
             "(order_type = 'LIMIT' AND price > 0) OR (order_type = 'MARKET' AND price IS NULL)",
             name="check_price_for_order_type",
