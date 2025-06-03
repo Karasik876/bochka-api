@@ -10,6 +10,7 @@ import src.app
 from src import core
 from src.app import models, schemas
 from src.app.api import dependencies
+from src.core.uow import UnitOfWork
 from src.main import app
 
 postgres_manager = core.db.get_postgres_manager()
@@ -49,8 +50,8 @@ async def mock_uow(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) ->
     async def patched_aexit(*args, **kwargs):
         pass
 
-    monkeypatch.setattr(core.UnitOfWork, "__aenter__", patched_aenter)
-    monkeypatch.setattr(core.UnitOfWork, "__aexit__", patched_aexit)
+    monkeypatch.setattr(UnitOfWork, "__aenter__", patched_aenter)
+    monkeypatch.setattr(UnitOfWork, "__aexit__", patched_aexit)
 
 
 @pytest.fixture(scope="function")

@@ -109,8 +109,8 @@ def register_error_handlers(app: FastAPI) -> None:  # noqa: C901
     @app.exception_handler(NotImplementedError)
     def handle_not_implemented_error(request: Request, exc: NotImplementedError) -> ORJSONResponse:
         return make_error_response(
-            "This feature not implemented yet",
-            "This feature not implemented yet",
+            "Not Implemented",
+            "Not Implemented",
             "not_implemented",
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

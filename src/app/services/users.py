@@ -1,5 +1,12 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from src import core
 from src.app import models, repositories, schemas
+
+if TYPE_CHECKING:
+    from src.core.uow import UnitOfWork
 
 
 class Users(
@@ -22,7 +29,7 @@ class Users(
             filters_schema=schemas.users.Filters,
         )
 
-    async def read_by_name(self, uow: core.UnitOfWork, name: str) -> schemas.users.Read:
+    async def read_by_name(self, uow: UnitOfWork, name: str) -> schemas.users.Read:
         user = await self.repo.read_by_name(uow, name)
 
         if not user:

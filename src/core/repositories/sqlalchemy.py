@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
-from typing import Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from sqlalchemy import Select, and_, func, inspect, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories, schemas
-from src.core.uow import UnitOfWork
 from src.core.utils.decorators import log_operation, retry_on_serialization
 from src.core.utils.decorators.retry import is_serialization_failure
+
+if TYPE_CHECKING:
+    from src.core.uow import UnitOfWork
 
 SQLModelType = TypeVar("SQLModelType", bound=models.sqlalchemy.Base)
 
@@ -179,7 +183,8 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                     else column.asc()
                 )
 
-            query = query.offset((page - 1) * limit).limit(limit)
+            if limit != float("inf"):
+                query = query.offset((page - 1) * limit).limit(limit)
 
             result = await session.scalars(query)
             return result.all()

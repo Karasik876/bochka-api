@@ -1,7 +1,7 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, CheckConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, ForeignKey, Uuid
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
@@ -24,10 +24,10 @@ class BalanceOperation(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftD
 
     __table_args__ = (CheckConstraint("amount > 0", name="check_operation_amount_positive"),)
 
-    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid7)
-    user_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("users.id"))
+    id: Mapped[Uuid] = mapped_column(Uuid, primary_key=True, default=uuid7)
+    user_id: Mapped[Uuid] = mapped_column(Uuid, ForeignKey("users.id"))
 
-    instrument_id: Mapped[UUID] = mapped_column(UUID, ForeignKey("instruments.id"))
+    instrument_id: Mapped[Uuid] = mapped_column(Uuid, ForeignKey("instruments.id"))
 
     amount: Mapped[int]
     operation_type: Mapped[OperationType] = mapped_column(

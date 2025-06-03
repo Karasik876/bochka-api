@@ -65,7 +65,7 @@ async def test_withdraw_failed_not_enough_funds(
     response = await admin_client.post("/admin/balance/withdraw", json=withdraw_data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json().get("error_code") == "not_enough_funds"
+    assert response.json().get("error_code") == "not_enough_balance"
 
 
 async def test_withdraw_failed_no_balance(
@@ -83,7 +83,7 @@ async def test_withdraw_failed_no_balance(
     response = await admin_client.post("/admin/balance/withdraw", json=withdraw_data)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.json().get("error_code") == "not_enough_funds"
+    assert response.json().get("error_code") == "not_enough_balance"
 
 
 async def test_withdraw_failed_user_not_found(

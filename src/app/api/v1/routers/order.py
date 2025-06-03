@@ -15,7 +15,7 @@ router = APIRouter(prefix="/order", tags=["order"])
     response_model=schemas.orders.CreateSuccess,
 )
 async def create_order(
-    order_data: schemas.orders.Create,
+    order_data: schemas.orders.CreateRequest,
     orders_service: dependencies.services.Orders,
     instrument_service: dependencies.services.Instruments,
     current_user: dependencies.permissions.CurrentUser,
@@ -23,22 +23,35 @@ async def create_order(
 ):
     instrument = await instrument_service.read_by_ticker(uow, order_data.ticker)
 
+    order_type = (
+        models.order.OrderType.LIMIT
+        if (is_limit_order := order_data.price is not None)
+        else models.order.OrderType.MARKET
+    )
+    status = models.order.OrderStatus.NEW if is_limit_order else models.order.OrderStatus.EXECUTED
+
     order = await orders_service.create(
         uow,
-        order_data,
-        additional_data={
-            "instrument_id": instrument.id,
-            "user_id": current_user.id,
-            "status": "NEW" if hasattr(order_data, "price") else "EXECUTED",
-            "order_type": "LIMIT" if hasattr(order_data, "price") else "MARKET",
-        },
+        schemas.orders.Create(
+            **order_data.model_dump(),
+            instrument_id=instrument.id,
+            user_id=current_user.id,
+            order_type=order_type,
+            status=status,
+        ),
     )
     return schemas.orders.CreateSuccess(order_id=order.id)
 
 
-@router.get("", dependencies=[Depends(dependencies.permissions.get_current_user)])
-async def get_my_orders():
-    raise NotImplementedError
+@router.get("", response_model=list[schemas.orders.Read])
+async def get_my_orders(
+    order_service: dependencies.services.Orders,
+    current_user: dependencies.permissions.CurrentUser,
+    uow: dependencies.uow.Postgres,
+):
+    return await order_service.read_many(
+        uow, filters=schemas.orders.Filters(user_id=current_user.id)
+    )
 
 
 @router.get(

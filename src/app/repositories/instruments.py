@@ -1,9 +1,15 @@
-from collections.abc import Sequence
+from __future__ import annotations
 
-from sqlalchemy import UUID, Row, select
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Row, Uuid, select
 
 from src import core
 from src.app import models
+
+if TYPE_CHECKING:
+    from src.core.uow import UnitOfWork
 
 
 class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
@@ -11,7 +17,7 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
         super().__init__(models.Instrument)
 
     @staticmethod
-    async def get_all_instruments(uow: core.UnitOfWork) -> Sequence[Row[tuple[UUID, str]]]:
+    async def get_all_instruments(uow: UnitOfWork) -> Sequence[Row[tuple[Uuid, str]]]:
         session = uow.postgres_session
 
         instruments_query = select(models.Instrument.id, models.Instrument.ticker).where(
@@ -23,7 +29,7 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
 
     @staticmethod
     async def read_by_ticker(
-        uow: core.UnitOfWork, ticker: str, *, include_deleted: bool = False
+        uow: UnitOfWork, ticker: str, *, include_deleted: bool = False
     ) -> models.Instrument | None:
         query = select(models.Instrument).filter_by(ticker=ticker)
 

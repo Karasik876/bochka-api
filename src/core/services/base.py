@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import logging
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel
 
 from src.core import custom_types, repositories, schemas, services
-from src.core.uow import UnitOfWork
+
+if TYPE_CHECKING:
+    from src.core.uow import UnitOfWork
+
 from src.core.utils.decorators import log_operation
 
 TCreate = TypeVar("TCreate", bound=BaseModel)

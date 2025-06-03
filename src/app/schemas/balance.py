@@ -8,12 +8,12 @@ from src import core
 
 from . import instruments as instrument_schemas
 
-BalanceOperationAmount = Annotated[int, Field(gt=0)]
+BalanceAmount = Annotated[int, Field(ge=0)]
 
 
 class Base(BaseModel):
     user_id: UUID
-    amount: BalanceOperationAmount
+    amount: BalanceAmount
     instrument_id: UUID
 
 
@@ -22,7 +22,7 @@ class Create(Base):
 
 
 class Update(BaseModel):
-    amount: BalanceOperationAmount | None
+    amount: BalanceAmount | None
 
 
 class Read(Base):
@@ -32,8 +32,8 @@ class Read(Base):
 class Filters(core.schemas.BaseFilters):
     user_id: list[UUID] | UUID | None = None
     ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
-    amount_from: BalanceOperationAmount | None = None
-    amount_to: BalanceOperationAmount | None = None
+    amount_from: BalanceAmount | None = None
+    amount_to: BalanceAmount | None = None
 
 
 class SortFields(enum.StrEnum):
@@ -49,9 +49,6 @@ class SortParams(core.schemas.SortParams):
 
 class BalanceReadManyParams(Filters, SortParams, core.schemas.PaginationParams):
     pass
-
-
-BalanceAmount = Annotated[int, Field(ge=0)]
 
 
 class Response(RootModel[dict[instrument_schemas.Ticker, BalanceAmount]]):

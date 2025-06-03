@@ -10,12 +10,11 @@ from . import (
     schemas,
     services,
     settings,
+    uow,
     utils,
 )
-from .uow import UnitOfWork
 
 __all__ = [
-    "UnitOfWork",
     "config",
     "custom_types",
     "db",
@@ -27,5 +26,6 @@ __all__ = [
     "schemas",
     "services",
     "settings",
+    "uow",
     "utils",
 ]

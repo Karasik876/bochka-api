@@ -1,7 +1,8 @@
 from .balance import Balance
 from .balance_operation import BalanceOperation
 from .instrument import Instrument
-from .order import Order, Transaction
+from .order import Order
+from .transaction import Transaction
 from .user import User, UserRole
 
 __all__ = [

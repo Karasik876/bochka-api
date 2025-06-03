@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class BaseFilters(BaseModel):
@@ -53,7 +53,14 @@ class BaseFilters(BaseModel):
 
 class PaginationParams(BaseModel):
     page: Annotated[int, Field(ge=1)] = 1
-    limit: Annotated[int, Field(ge=1, le=1000)] = 10
+    limit: Annotated[int, Field(ge=0, le=1000)] = 10
+
+    @field_validator("limit", mode="after")
+    @classmethod
+    def validate_limit(cls, value: int):
+        if value == 0:
+            return float("inf")
+        return value
 
 
 class SortOrderField(enum.StrEnum):

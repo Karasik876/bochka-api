@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from src import core
-from src.app import models, schemas
+from src.app import models, schemas, services
 from src.app.api import dependencies
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -130,7 +130,7 @@ async def withdraw(
         )
 
         if balance.amount < balance_operation.amount:
-            raise dependencies.exceptions.NotEnoughFundsError(
+            raise services.exceptions.InsufficientBalanceError(
                 balance_operation.user_id, instrument.ticker
             )
 
@@ -140,7 +140,7 @@ async def withdraw(
             schemas.balance.Update(amount=balance.amount - balance_operation.amount),
         )
     except core.services.exceptions.EntityNotFoundError:
-        raise dependencies.exceptions.NotEnoughFundsError(
+        raise services.exceptions.InsufficientBalanceError(
             balance_operation.user_id, instrument.ticker
         ) from None
 
