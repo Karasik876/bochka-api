@@ -55,9 +55,9 @@ async def get_orderbook(
 
         for price_key, _, order in heap[: pagination.limit]:
             price = -price_key if is_bid else price_key
-            qty = order.qty - (order.filled or 0)
-            if qty > 0:
-                price_map[price] += qty
+            qty_remaining = order.qty - (order.filled or 0)
+            if qty_remaining > 0:
+                price_map[price] += qty_remaining
 
         sorted_prices = sorted(price_map.items(), key=lambda x: x[0], reverse=is_bid)
 

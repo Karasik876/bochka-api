@@ -25,20 +25,9 @@ class Authentication:
     async def auth_user(
         self, uow: UnitOfWork, create_schema: schemas.users.Create
     ) -> schemas.users.Auth:
-        user = await self._get_or_create_user(uow, create_schema)
+        user = await uow.user_service.get_or_create_user(uow, create_schema)
         token = self.encode_token({"user_id": str(user.id)})
         return schemas.users.Auth(id=user.id, name=user.name, role=user.role, api_key=token)
-
-    async def _get_or_create_user(
-        self, uow: UnitOfWork, user_data: schemas.users.Create
-    ) -> schemas.users.Read:
-        try:
-            return await uow.user_service.read_by_name(uow, user_data.name)
-        except core.services.exceptions.EntityNotFoundError:
-            return await uow.user_service.create(
-                uow,
-                user_data,
-            )
 
     async def read_user_by_token(self, uow: UnitOfWork, token: str) -> schemas.users.Read:
         user_data = self.decode_token(token)

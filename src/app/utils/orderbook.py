@@ -56,6 +56,7 @@ class OrderBook:
                 heap[i] = (heap[i][0], heap[i][1], updated_order)
                 heapq.heapify(heap)
                 break
+
     @staticmethod
     def _update_best_order(heap: OrderHeap, updated_order: schemas.orders.Read):
         # O(1)
@@ -67,6 +68,7 @@ class OrderBook:
                 best_order.locked_money_amount = updated_order.locked_money_amount
             else:
                 best_order.locked_instrument_amount = updated_order.locked_instrument_amount
+
     @staticmethod
     def _remove_best_order(heap: OrderHeap, order_id: UUID):
         # O(log(n))

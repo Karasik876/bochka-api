@@ -38,3 +38,14 @@ class Users(
             )
 
         return await self._validate_data(user)
+
+    async def get_or_create_user(
+        self, uow: UnitOfWork, user_data: schemas.users.Create
+    ) -> schemas.users.Read:
+        try:
+            return await self.read_by_name(uow, user_data.name)
+        except core.services.exceptions.EntityNotFoundError:
+            return await self.create(
+                uow,
+                user_data,
+            )

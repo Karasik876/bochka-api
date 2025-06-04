@@ -1,6 +1,3 @@
-import logging
-from typing import TypeVar
-
 from sqlalchemy import AsyncAdaptedQueuePool
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -10,10 +7,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.core import config, utils
-
-logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
 
 settings = config.get_settings()
 

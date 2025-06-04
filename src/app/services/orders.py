@@ -89,6 +89,8 @@ class Orders(
                 available_money = rub_balance.amount - locked_money
 
                 if available_money < required_money:
+                    print(f"dazzle available_money {available_money}")
+                    print(f"dazzle required_money {required_money}")
                     raise services.exceptions.InsufficientBalanceError(user_id, "RUB")
 
                 locked_money_amount = required_money
@@ -103,6 +105,8 @@ class Orders(
 
                 if available_instrument < qty:
                     instrument = await uow.instrument_service.read_by_id(uow, instrument_id)
+                    print(f"dazzle available_instrument {available_instrument}")
+                    print(f"dazzle qty {qty}")
                     raise services.exceptions.InsufficientBalanceError(user_id, instrument.ticker)
 
                 locked_money_amount = None

@@ -52,8 +52,8 @@ async def test_create_retries_on_serialization_error(mock_uow: None, db_session:
                 uow, {"ticker": "TESTTEST", "name": "Test Instrument"}
             )
 
-    res = await db_session.scalars(select(models.Instrument))
-    results = res.all()
+    results = (await db_session.scalars(select(models.Instrument))).all()
+
     assert len(results) == 1
     assert getattr(results[0], "ticker", None) == "TESTTEST"
 
@@ -95,7 +95,7 @@ async def test_endpoint_retries_on_serialization_error(
 
     assert flush_count == retries_number
 
-    result = await db_session.scalars(select(models.Instrument))
-    instruments = result.all()
+    instruments = (await db_session.scalars(select(models.Instrument))).all()
+
     assert len(instruments) == 1
     assert instruments[0].ticker == "RETRY"
