@@ -1,8 +1,7 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Uuid, String
-from sqlalchemy import Enum as SQLAlchemyEnum
+from sqlalchemy import String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
 

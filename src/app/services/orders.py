@@ -94,10 +94,8 @@ class Orders(
         sell_order: schemas.orders.Read,
         executed_qty: int,
     ) -> None:
-
         # Если цена продажи выставлена - используем её, иначе цену покупки
         price = cast(int, sell_order.price) if sell_order.price else cast(int, buy_order.price)
-        print("!!! price ", price)
 
         await self._update_balances(
             uow,
@@ -126,11 +124,13 @@ class Orders(
         )
 
         buy_order.locked_money -= executed_qty * price
-        print("!!! executed_qty ", executed_qty)
-        print("!!! buy_order.locked_money ", buy_order.locked_money)
 
         await self.update_by_id(
-            uow, buy_order.id, schemas.orders.Update(filled=new_filled_buy, status=buy_status, locked_money=buy_order.locked_money)
+            uow,
+            buy_order.id,
+            schemas.orders.Update(
+                filled=new_filled_buy, status=buy_status, locked_money=buy_order.locked_money
+            ),
         )
 
         if buy_status == models.OrderStatus.EXECUTED:
@@ -148,17 +148,27 @@ class Orders(
             uow, sell_order.id, schemas.orders.Update(filled=new_filled_sell, status=sell_status)
         )
 
-    async def return_left_locked_money(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
+    async def return_left_locked_money(
+        self, uow: core.UnitOfWork, order: schemas.orders.Read
+    ) -> None:
         rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
-        user_rub_balance = await self.balances_service.get_or_create_user_balance(uow, order.user_id, rub_instrument.id)
+        user_rub_balance = await self.balances_service.get_or_create_user_balance(
+            uow, order.user_id, rub_instrument.id
+        )
 
         user_rub_balance.amount += order.locked_money
         user_rub_balance.locked_amount -= order.locked_money
         await self.balances_service.update_by_id(
-            uow, {"user_id": order.user_id, "instrument_id": rub_instrument.id}, schemas.balance.Update(amount=user_rub_balance.amount, locked_amount=user_rub_balance.locked_amount),
+            uow,
+            {"user_id": order.user_id, "instrument_id": rub_instrument.id},
+            schemas.balance.Update(
+                amount=user_rub_balance.amount, locked_amount=user_rub_balance.locked_amount
+            ),
         )
         await self.update_by_id(
-            uow, order.id, schemas.orders.Update(locked_money=0),
+            uow,
+            order.id,
+            schemas.orders.Update(locked_money=0),
         )
 
     async def _handle_market_buy(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
@@ -184,9 +194,12 @@ class Orders(
             executed_qty = min(sell_order.qty - sell_order.filled, order.qty - order.filled)
 
             locked_money = cast(int, sell_order.price) * executed_qty
-            await self.balances_service.reserve(uow, order.user_id, rub_instrument.id, locked_money)
-            order = await self.update_by_id(uow, order.id, schemas.orders.Update(locked_money=locked_money))
-            print("!!! balance locked ", locked_money)
+            await self.balances_service.reserve(
+                uow, order.user_id, rub_instrument.id, locked_money
+            )
+            order = await self.update_by_id(
+                uow, order.id, schemas.orders.Update(locked_money=locked_money)
+            )
 
             await self._execute_trade(uow, order, sell_order, executed_qty)
             filled += executed_qty
@@ -278,7 +291,10 @@ class Orders(
             filled += executed_qty
 
     async def create(
-        self, uow: core.UnitOfWork, order_data: schemas.orders.Create, additional_data: dict,
+        self,
+        uow: core.UnitOfWork,
+        order_data: schemas.orders.Create,
+        additional_data: dict,
     ) -> schemas.orders.Read:
         instrument = await self.instruments_service.read_by_ticker(uow, order_data.ticker)
         additional_data["instrument_id"] = instrument.id

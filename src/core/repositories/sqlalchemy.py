@@ -6,7 +6,7 @@ from sqlalchemy import Select, and_, func, inspect, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import InstrumentedAttribute
 
-from src.core import custom_types, models, repositories, schemas
+from src.core import custom_types, models, repositories
 from src.core.uow import UnitOfWork
 from src.core.utils.decorators import log_operation, retry_on_serialization
 from src.core.utils.decorators.retry import is_serialization_failure
@@ -173,11 +173,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             if sorting and (sort_by := sorting.get("sort_by")) is not None:
                 ascending = sorting.get("ascending", True)
                 column = getattr(self.model, sort_by)
-                query = query.order_by(
-                    column.asc()
-                    if ascending
-                    else column.desc()
-                )
+                query = query.order_by(column.asc() if ascending else column.desc())
 
             query = query.offset((page - 1) * limit).limit(limit)
 

@@ -33,11 +33,12 @@ class Create(Base):
 
 
 class LimitOrderBody(Base):
+    ticker: instrument_schemas.Ticker
     price: LimitOrderPrice
 
 
 class MarketOrderBody(Base):
-    pass
+    ticker: instrument_schemas.Ticker
 
 
 class Read(Base):

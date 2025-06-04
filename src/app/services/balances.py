@@ -26,7 +26,9 @@ class Balances(
 
         self.instrument_service = services.Instruments()
 
-    async def reserve(self, uow: core.UnitOfWork, user_id: UUID, instrument_id: UUID, amount: int) -> None:
+    async def reserve(
+        self, uow: core.UnitOfWork, user_id: UUID, instrument_id: UUID, amount: int
+    ) -> None:
         balance = await self.get_or_create_user_balance(uow, user_id, instrument_id)
         balance.amount -= amount
 

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Uuid, CheckConstraint, ForeignKey
+from sqlalchemy import CheckConstraint, ForeignKey, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src import core
@@ -27,5 +27,5 @@ class Balance(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 
     __table_args__ = (
         CheckConstraint("amount >= 0", name="check_balance_amount_non_negative"),
-        CheckConstraint("locked_amount >= 0", name="check_balance_locked_amount_non_negative")
-        )
+        CheckConstraint("locked_amount >= 0", name="check_balance_locked_amount_non_negative"),
+    )

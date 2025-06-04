@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Uuid, Index, String, text
+from sqlalchemy import Index, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid_v7.base import uuid7
 
