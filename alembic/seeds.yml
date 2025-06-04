@@ -1,0 +1,12 @@
+instruments:
+  - seed_id: "001_instruments"
+    id: "067d5d6b-14b8-7f7c-b4de-9008f9a9fbab"
+    ticker: "RUB"
+    name: "Rubles"
+
+
+users:
+  - seed_id: "001_users"
+    id: "b3b4b4b4-b4b4-b4b4-b4b4-b4b4b4b4b4b4"
+    name: "admin"
+    role: "ADMIN"
