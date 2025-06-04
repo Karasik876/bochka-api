@@ -79,7 +79,14 @@ class OrderBook:
     def get_execution_price(
         sell_order: schemas.orders.Read, buy_order: schemas.orders.Read
     ) -> int:
-        maker_order = sell_order if sell_order.created_at < buy_order.created_at else buy_order
+        maker_order = (
+            sell_order
+            if sell_order.created_at < buy_order.created_at
+            or (
+                sell_order.price and not buy_order.price
+            )  # Fixes tests that create orders at the same time
+            else buy_order
+        )
         if maker_order.price is None:
             raise ValueError("Maker order price cannot be None")
 

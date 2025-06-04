@@ -172,12 +172,16 @@ def create_order(db_session: AsyncSession, rub_instrument: models.Instrument) ->
         params.pop("db_session", None)
         params.pop("rub_instrument", None)
 
-        is_rub = instrument_id == rub_instrument.id
+        is_buy, is_sell = (
+            direction == models.order.Direction.BUY,
+            direction == models.order.Direction.SELL,
+        )
         is_limit = price is not None
+
         order = models.Order(
             **params,
-            locked_money_amount=qty * price if is_rub and price else None,
-            locked_instrument_amount=qty if not is_rub and price else None,
+            locked_money_amount=qty * price if is_buy and price else None,
+            locked_instrument_amount=qty if is_sell and price else None,
             order_type=models.order.OrderType.LIMIT if is_limit else models.order.OrderType.MARKET,
             filled=0 if is_limit else None,
         )
