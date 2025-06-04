@@ -94,13 +94,18 @@ class Orders(
         sell_order: schemas.orders.Read,
         executed_qty: int,
     ) -> None:
+
+        # Если цена продажи выставлена - используем её, иначе цену покупки
+        price = cast(int, sell_order.price) if sell_order.price else cast(int, buy_order.price)
+        print("!!! price ", price)
+
         await self._update_balances(
             uow,
             buyer_id=buy_order.user_id,
             seller_id=sell_order.user_id,
             instrument_id=buy_order.instrument.id,
             qty=executed_qty,
-            price=cast(int, sell_order.price),
+            price=price,
         )
 
         await self._create_transaction(
@@ -109,7 +114,7 @@ class Orders(
             sell_order_id=sell_order.id,
             instrument_id=buy_order.instrument.id,
             qty=executed_qty,
-            price=cast(int, sell_order.price),
+            price=price,
         )
 
         # Обновление ордера на покупку
@@ -120,6 +125,17 @@ class Orders(
             else models.OrderStatus.PARTIALLY_EXECUTED
         )
 
+        buy_order.locked_money -= executed_qty * price
+        print("!!! executed_qty ", executed_qty)
+        print("!!! buy_order.locked_money ", buy_order.locked_money)
+
+        await self.update_by_id(
+            uow, buy_order.id, schemas.orders.Update(filled=new_filled_buy, status=buy_status, locked_money=buy_order.locked_money)
+        )
+
+        if buy_status == models.OrderStatus.EXECUTED:
+            await self.return_left_locked_money(uow, buy_order)
+
         # Обновление ордера на продажу
         new_filled_sell = sell_order.filled + executed_qty
         sell_status = (
@@ -127,16 +143,6 @@ class Orders(
             if new_filled_sell == sell_order.qty
             else models.OrderStatus.PARTIALLY_EXECUTED
         )
-
-        buy_order.locked_money -= executed_qty * cast(int, sell_order.price)
-
-        # Пакетное обновление ордеров в одной транзакции
-        await self.update_by_id(
-            uow, buy_order.id, schemas.orders.Update(filled=new_filled_buy, status=buy_status, locked_money=buy_order.locked_money)
-        )
-
-        if buy_status == models.OrderStatus.EXECUTED:
-            await self.return_left_locked_money(uow, buy_order)
 
         await self.update_by_id(
             uow, sell_order.id, schemas.orders.Update(filled=new_filled_sell, status=sell_status)
@@ -172,13 +178,15 @@ class Orders(
             )
 
             if not sell_orders:
-                raise exceptions.OrderRejectedError(order.id, order.qty, order.filled)
+                raise exceptions.OrderRejectedError(order.id, order.qty, filled)
 
             sell_order = sell_orders[0]
             executed_qty = min(sell_order.qty - sell_order.filled, order.qty - order.filled)
 
             locked_money = cast(int, sell_order.price) * executed_qty
             await self.balances_service.reserve(uow, order.user_id, rub_instrument.id, locked_money)
+            order = await self.update_by_id(uow, order.id, schemas.orders.Update(locked_money=locked_money))
+            print("!!! balance locked ", locked_money)
 
             await self._execute_trade(uow, order, sell_order, executed_qty)
             filled += executed_qty
@@ -202,7 +210,7 @@ class Orders(
             )
 
             if not buy_orders:
-                raise exceptions.OrderRejectedError(order.id, order.qty, order.filled)
+                raise exceptions.OrderRejectedError(order.id, order.qty, filled)
 
             buy_order = buy_orders[0]
             executed_qty = min(buy_order.qty - buy_order.filled, order.qty - order.filled)
