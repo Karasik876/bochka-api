@@ -23,11 +23,12 @@ OrderQuantity = Annotated[int, Field(ge=1)]
 
 class Base(BaseModel):
     direction: models.order.Direction
-    ticker: instrument_schemas.Ticker
     qty: OrderQuantity
 
 
 class Create(Base):
+    ticker: instrument_schemas.Ticker
+    status: models.order.OrderStatus = models.order.OrderStatus.NEW
     price: LimitOrderPrice | None = None
 
 
@@ -39,18 +40,39 @@ class MarketOrderBody(Base):
     pass
 
 
-class Read(BaseModel):
+class Read(Base):
     id: UUID
     status: models.order.OrderStatus
+    order_type: models.order.OrderType
     user_id: UUID
     created_at: Annotated[datetime, Field(serialization_alias="timestamp")]
+    instrument_id: UUID
+
+    locked_money: int
 
     instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
     direction: Annotated[models.order.Direction, Field(exclude=True)]
     qty: Annotated[OrderQuantity, Field(exclude=True)]
     price: Annotated[LimitOrderPrice | None, Field(exclude=True)]
 
-    filled: int | None
+    filled: int
+
+    model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
+
+
+class ReadResponse(Base):
+    id: UUID
+    status: models.order.OrderStatus
+    user_id: UUID
+    created_at: Annotated[datetime, Field(serialization_alias="timestamp")]
+    instrument_id: UUID
+
+    instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
+    direction: Annotated[models.order.Direction, Field(exclude=True)]
+    qty: Annotated[OrderQuantity, Field(exclude=True)]
+    price: Annotated[LimitOrderPrice | None, Field(exclude=True)]
+
+    filled: int
 
     @computed_field
     @property
@@ -73,6 +95,8 @@ class Read(BaseModel):
 
 class Update(BaseModel):
     status: models.order.OrderStatus | None = None
+    filled: int | None = None
+    locked_money: int | None = None
 
 
 class SuccessResponse(BaseModel):
@@ -85,7 +109,7 @@ class CreateSuccess(SuccessResponse):
 
 class Filters(core.schemas.BaseFilters):
     direction: list[models.order.Direction] | models.order.Direction | None = None
-    ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
+    instrument_id: list[UUID] | UUID | None = None
     status: list[models.order.OrderStatus] | models.order.OrderStatus | None = None
     user_id: list[UUID] | UUID | None = None
     price_from: LimitOrderPrice | None = None

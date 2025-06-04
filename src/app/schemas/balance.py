@@ -22,10 +22,12 @@ class Create(Base):
 
 
 class Update(BaseModel):
-    amount: BalanceOperationAmount | None
+    amount: BalanceOperationAmount | None = None
+    locked_amount: int | None = None
 
 
 class Read(Base):
+    locked_amount: int = 0
     model_config = ConfigDict(from_attributes=True)
 
 

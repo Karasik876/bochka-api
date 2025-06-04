@@ -17,20 +17,15 @@ router = APIRouter(prefix="/order", tags=["order"])
 async def create_order(
     order_data: schemas.orders.Create,
     orders_service: dependencies.services.Orders,
-    instrument_service: dependencies.services.Instruments,
     current_user: dependencies.permissions.CurrentUser,
     uow: dependencies.uow.Postgres,
 ):
-    instrument = await instrument_service.read_by_ticker(uow, order_data.ticker)
-
     order = await orders_service.create(
         uow,
         order_data,
         additional_data={
-            "instrument_id": instrument.id,
             "user_id": current_user.id,
-            "status": "NEW" if hasattr(order_data, "price") else "EXECUTED",
-            "order_type": "LIMIT" if hasattr(order_data, "price") else "MARKET",
+            "order_type": "LIMIT" if order_data.price else "MARKET",
         },
     )
     return schemas.orders.CreateSuccess(order_id=order.id)

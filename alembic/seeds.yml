@@ -4,6 +4,11 @@ instruments:
     ticker: "RUB"
     name: "Rubles"
 
+  - seed_id: "002_instruments"
+    id: "067d5d6b-14b8-7f7c-b4de-9008f9a9fba1"
+    ticker: "BTC"
+    name: "Bitcoin"
+
 
 users:
   - seed_id: "001_users"

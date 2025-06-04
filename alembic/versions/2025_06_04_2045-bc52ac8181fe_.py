@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: d68d44bb0876
+Revision ID: bc52ac8181fe
 Revises: 
-Create Date: 2025-06-04 20:22:20.328855
+Create Date: 2025-06-04 20:45:51.368170
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd68d44bb0876'
+revision: str = 'bc52ac8181fe'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -62,6 +62,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.CheckConstraint('amount >= 0', name=op.f('ck_balances_check_balance_amount_non_negative')),
+    sa.CheckConstraint('locked_amount >= 0', name=op.f('ck_balances_check_balance_locked_amount_non_negative')),
     sa.ForeignKeyConstraint(['instrument_id'], ['instruments.id'], name=op.f('fk_balances_instrument_id_instruments')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_balances_user_id_users')),
     sa.PrimaryKeyConstraint('user_id', 'instrument_id', name=op.f('pk_balances'))
@@ -80,9 +81,7 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
-    sa.CheckConstraint("(order_type = 'LIMIT' AND filled >= 0) OR (order_type = 'MARKET' AND filled IS NULL)", name=op.f('ck_orders_check_filled_for_order_type')),
-    sa.CheckConstraint("(order_type = 'LIMIT' AND price > 0) OR (order_type = 'MARKET' AND price IS NULL)", name=op.f('ck_orders_check_price_for_order_type')),
-    sa.CheckConstraint('locked_money >= 1', name=op.f('ck_orders_check_locked_money_constraint')),
+    sa.CheckConstraint('locked_money >= 0', name=op.f('ck_orders_check_locked_money_constraint')),
     sa.CheckConstraint('qty >= 1', name=op.f('ck_orders_check_qty_constraint')),
     sa.ForeignKeyConstraint(['instrument_id'], ['instruments.id'], name=op.f('fk_orders_instrument_id_instruments')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_orders_user_id_users')),

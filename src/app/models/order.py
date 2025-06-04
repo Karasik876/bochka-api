@@ -58,13 +58,5 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 
     __table_args__ = (
         CheckConstraint("qty >= 1", name="check_qty_constraint"),
-        CheckConstraint("locked_money >= 1", name="check_locked_money_constraint"),
-        CheckConstraint(
-            "(order_type = 'LIMIT' AND filled >= 0) OR (order_type = 'MARKET' AND filled IS NULL)",
-            name="check_filled_for_order_type",
-        ),
-        CheckConstraint(
-            "(order_type = 'LIMIT' AND price > 0) OR (order_type = 'MARKET' AND price IS NULL)",
-            name="check_price_for_order_type",
-        ),
+        CheckConstraint("locked_money >= 0", name="check_locked_money_constraint"),
     )
