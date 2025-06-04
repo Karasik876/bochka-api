@@ -171,12 +171,12 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 query = self._process_filters(query, filters)
 
             if sorting and (sort_by := sorting.get("sort_by")) is not None:
-                order_by = sorting.get("order_by", "asc")
+                ascending = sorting.get("ascending", True)
                 column = getattr(self.model, sort_by)
                 query = query.order_by(
-                    column.desc()
-                    if order_by == schemas.SortOrderField.DESCENDING
-                    else column.asc()
+                    column.asc()
+                    if ascending
+                    else column.desc()
                 )
 
             query = query.offset((page - 1) * limit).limit(limit)
