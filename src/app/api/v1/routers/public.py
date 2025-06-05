@@ -48,13 +48,12 @@ async def get_orderbook(
         uow, instrument.id, refresh=True
     )
 
-    def extract_levels(
-        heap: list[tuple[int, float, schemas.orders.Read]], *, is_bid: bool
-    ) -> list[dict[str, int]]:
+    def extract_levels(heap: utils.orderbook.OrderHeap, *, is_bid: bool) -> list[dict[str, int]]:
         price_map = defaultdict(int)
 
-        for price_key, _, order in heap[: pagination.limit]:
-            price = -price_key if is_bid else price_key
+        for order in heap[: pagination.limit]:
+            assert order.price is not None
+            price = -order.price if is_bid else order.price
             qty_remaining = order.qty - (order.filled or 0)
             if qty_remaining > 0:
                 price_map[price] += qty_remaining

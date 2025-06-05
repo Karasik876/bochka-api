@@ -9,7 +9,7 @@ from src.app import models, schemas
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
 
-type OrderHeap = list[tuple[int, float, schemas.orders.Read]]
+type OrderHeap = list[schemas.orders.Read]
 
 
 class OrderBook:
@@ -26,11 +26,10 @@ class OrderBook:
 
         # O(n)
         for order in active_orders:
-            timestamp = order.created_at.timestamp()
             if order.direction == models.order.Direction.BUY:
-                buy_orders.append((-order.price, timestamp, order))  # type: ignore[valid-type]
+                buy_orders.append(order)
             else:
-                sell_orders.append((order.price, timestamp, order))
+                sell_orders.append(order)
 
         # O(n)
         heapq.heapify(buy_orders)
@@ -39,28 +38,10 @@ class OrderBook:
         self.bids = buy_orders
         self.asks = sell_orders
 
-    def _add_order(self, order: schemas.orders.Read):
-        if order.price is None:
-            return
-
-        timestamp = order.created_at.timestamp()
-        if order.direction == models.order.Direction.BUY:
-            heapq.heappush(self.bids, (-order.price, timestamp, order))
-        else:
-            heapq.heappush(self.asks, (order.price, timestamp, order))
-
-    @staticmethod
-    def _update_order_in_heap(heap: OrderHeap, updated_order: schemas.orders.Read):
-        for i, (_, _, order) in enumerate(heap):
-            if order.id == updated_order.id:
-                heap[i] = (heap[i][0], heap[i][1], updated_order)
-                heapq.heapify(heap)
-                break
-
     @staticmethod
     def _update_best_order(heap: OrderHeap, updated_order: schemas.orders.Read):
         # O(1)
-        if heap and (best_order := heap[0][2]).id == updated_order.id:
+        if heap and (best_order := heap[0]).id == updated_order.id:
             best_order.filled = updated_order.filled
             best_order.status = updated_order.status
 
@@ -72,7 +53,7 @@ class OrderBook:
     @staticmethod
     def _remove_best_order(heap: OrderHeap, order_id: UUID):
         # O(log(n))
-        if heap and heap[0][2].id == order_id:
+        if heap and heap[0].id == order_id:
             heapq.heappop(heap)
 
     @staticmethod

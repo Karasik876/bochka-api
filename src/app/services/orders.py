@@ -156,7 +156,7 @@ class Orders(
         remaining_qty = qty
         while remaining_qty > 0:
             if direction == models.order.Direction.BUY:
-                best_ask_order = order_book.asks[0][2] if order_book.asks else None
+                best_ask_order = order_book.asks[0] if order_book.asks else None
                 if not best_ask_order:
                     break
 
@@ -170,7 +170,7 @@ class Orders(
                 remaining_qty -= trade_qty
 
             else:  # SELL
-                best_bid_order = order_book.bids[0][2] if order_book.bids else None
+                best_bid_order = order_book.bids[0] if order_book.bids else None
                 if not best_bid_order:
                     break
 

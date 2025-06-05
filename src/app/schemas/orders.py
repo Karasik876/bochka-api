@@ -82,7 +82,17 @@ class Read(BaseModel):
         )
 
     def __lt__(self, other: "Read") -> bool:
-        return self.id < other.id
+        if self.direction != other.direction:
+            raise ValueError("Cannot compare orders with different directions")
+
+        assert self.price is not None
+        assert other.price is not None
+
+        match self.direction:
+            case models.order.Direction.SELL:
+                return (self.price, self.created_at) < (other.price, other.created_at)
+            case models.order.Direction.BUY:
+                return (-self.price, self.created_at) < (-other.price, other.created_at)
 
     model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
 
