@@ -12,6 +12,21 @@ from tests.conftest import AllBalances
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
+async def get_orders(
+    session: AsyncSession, order_type: models.order.OrderType, direction: models.order.Direction
+) -> list[models.Order]:
+    return list(
+        (
+            await session.scalars(
+                select(models.Order).filter_by(
+                    order_type=order_type,
+                    direction=direction,
+                )
+            )
+        ).all()
+    )
+
+
 @pytest.mark.parametrize(
     ("limit_direction", "market_direction", "expected_status", "qty_diff"),
     [
@@ -83,22 +98,8 @@ async def test_execute_limit_order_by_market_order(
     response = await user_client.post("/order", json=user_market_order_create.model_dump())
     assert "detail" not in response.json()
 
-    market_orders = (
-        await db_session.scalars(
-            select(models.Order).filter_by(
-                order_type=models.order.OrderType.MARKET,
-                direction=market_direction,
-            )
-        )
-    ).all()
-    limit_orders = (
-        await db_session.scalars(
-            select(models.Order).filter_by(
-                order_type=models.order.OrderType.LIMIT,
-                direction=limit_direction,
-            )
-        )
-    ).all()
+    market_orders = await get_orders(db_session, models.order.OrderType.MARKET, market_direction)
+    limit_orders = await get_orders(db_session, models.order.OrderType.LIMIT, limit_direction)
 
     assert len(market_orders) == len(limit_orders) == 1
 
@@ -192,3 +193,95 @@ async def test_market_fails_with_insufficient_limit_orders(
     assert response_json["error_code"] == "market_order_not_filled"
     assert f"<{limit_order.qty}/{trade_qty}>" in response_json["detail"]
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.parametrize(
+    ("qty_diff", "expected_order1_status", "expected_order2_status"),
+    [
+        (0, models.order.OrderStatus.EXECUTED, models.order.OrderStatus.EXECUTED),
+        (2, models.order.OrderStatus.EXECUTED, models.order.OrderStatus.PARTIALLY_EXECUTED),
+        (10, models.order.OrderStatus.EXECUTED, models.order.OrderStatus.NEW),
+        (12, models.order.OrderStatus.PARTIALLY_EXECUTED, models.order.OrderStatus.NEW),
+    ],
+    ids=[
+        "both_full_execution",
+        "second_order_partial_execution",
+        "first_executed_second_unchanged",
+        "first_partially_executed_second_unchanged",
+    ],
+)
+async def test_market_buy_executes_two_limit_sells(
+    db_session: AsyncSession,
+    user_client: AsyncClient,
+    admin_user: models.User,
+    instrument: models.Instrument,
+    create_order: Callable,
+    all_balances: AllBalances,
+    qty_diff,
+    expected_order1_status,
+    expected_order2_status,
+):
+    start_user_balance, start_user_rub_balance, start_admin_balance, start_admin_rub_balance = [
+        b.amount for b in all_balances
+    ]
+
+    limit_order1 = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=5,
+        price=10,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order2 = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=10,
+        price=20,
+        status=models.order.OrderStatus.NEW,
+    )
+
+    total_qty = limit_order1.qty + limit_order2.qty
+    trade_qty = total_qty - qty_diff
+
+    market_order_create = schemas.orders.CreateRequest(
+        direction=models.order.Direction.BUY,
+        ticker=instrument.ticker,
+        qty=trade_qty,
+    )
+    response = await user_client.post("/order", json=market_order_create.model_dump())
+    assert "detail" not in response.json()
+
+    assert (
+        len(
+            await get_orders(db_session, models.order.OrderType.MARKET, models.order.Direction.BUY)
+        )
+        == 1
+    )
+
+    limit_sell_orders_db = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+    )
+    assert len(limit_sell_orders_db) == 2  # noqa: PLR2004
+
+    order1_db = await db_session.get(models.Order, limit_order1.id)
+    assert order1_db is not None
+    assert order1_db.status == expected_order1_status
+    assert order1_db.filled == trade_qty if trade_qty <= order1_db.qty else order1_db.qty
+    assert order1_db.locked_instrument_amount == order1_db.qty - (order1_db.filled or 0)
+
+    order2_db = await db_session.get(models.Order, limit_order2.id)
+    assert order2_db is not None
+    assert order2_db.status == expected_order2_status
+    assert order2_db.filled == 0 if trade_qty <= order1_db.qty else trade_qty - order1_db.qty
+    assert order2_db.locked_instrument_amount == order2_db.qty - (order2_db.filled or 0)
+
+    transferred_money = (order1_db.filled or 0) * (order1_db.price or 0) + (
+        order2_db.filled or 0
+    ) * (order2_db.price or 0)
+
+    assert all_balances.user_rub_balance.amount == start_user_rub_balance - transferred_money
+    assert all_balances.admin_rub_balance.amount == start_admin_rub_balance + transferred_money
+    assert all_balances.user_balance.amount == start_user_balance + trade_qty
+    assert all_balances.admin_balance.amount == start_admin_balance - trade_qty
