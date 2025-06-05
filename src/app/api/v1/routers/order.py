@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -69,17 +70,15 @@ async def cancel_order(
     uow: dependencies.uow.Postgres,
 ):
     order = await orders_service.read_by_id(uow, order_id)
-    if order.user_id != current_user.id:
+    if (
+        order.user_id != current_user.id
+        or order.status
+        in Literal[models.order.OrderStatus.CANCELLED, models.order.OrderStatus.EXECUTED]
+    ):
         raise core.services.exceptions.PermissionDeniedError(
             message="You dont have permission to cancel this order", service_name="Orders"
         )
 
-    await orders_service.update_by_id(
-        uow, order_id, schemas.orders.Update(status=models.order.OrderStatus.CANCELLED)
-    )
-
-    # Since cancelled orders should not be released with all of them and cannot be restored,
-    # we delete them so as not to make additional status checks.
-    await orders_service.delete_by_id(uow, order_id)
+    await orders_service.cancel_order(uow, order_id)
 
     return schemas.orders.SuccessResponse()

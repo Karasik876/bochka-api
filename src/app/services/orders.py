@@ -38,28 +38,49 @@ class Orders(
         self.balances_service = services.Balances()
         self.transactions_service = services.Transactions()
 
-    async def return_left_locked_money(
-        self, uow: core.UnitOfWork, order: schemas.orders.Read
+    async def _transfer_locked_amount_to_balance(
+        self,
+        uow: core.UnitOfWork,
+        from_order_id: UUID,
+        to_user_id: UUID,
+        instrument_id: UUID,
+        amount: int,
     ) -> None:
-        rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
-        user_rub_balance = await self.balances_service.get_or_create_user_balance(
-            uow, order.user_id, rub_instrument.id
+        order = await self.read_by_id(uow, from_order_id)
+
+        to_balance = await self.balances_service.get_or_create_user_balance(
+            uow, to_user_id, instrument_id
         )
 
-        user_rub_balance.amount += order.locked_money
-        user_rub_balance.locked_amount -= order.locked_money
-        await self.balances_service.update_by_id(
-            uow,
-            {"user_id": order.user_id, "instrument_id": rub_instrument.id},
-            schemas.balance.Update(
-                amount=user_rub_balance.amount, locked_amount=user_rub_balance.locked_amount
-            ),
-        )
+        new_locked_amount = order.locked_amount - amount
+
+        new_balance_amount = to_balance.amount + amount
+
         await self.update_by_id(
             uow,
             order.id,
-            schemas.orders.Update(locked_money=0),
+            schemas.orders.Update(locked_amount=new_locked_amount),
         )
+        await self.balances_service.update_by_id(
+            uow,
+            {"user_id": to_user_id, "instrument_id": instrument_id},
+            schemas.balance.Update(amount=new_balance_amount),
+        )
+
+    async def _return_locked_amount(self, uow: core.UnitOfWork, order_id: UUID) -> None:
+        order = await self.read_by_id(uow, order_id)
+        rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
+
+        if order.locked_amount > 0:
+            await self._transfer_locked_amount_to_balance(
+                uow,
+                from_order_id=order.id,
+                to_user_id=order.user_id,
+                instrument_id=rub_instrument.id
+                if order.direction == "BUY"
+                else order.instrument.id,
+                amount=order.locked_amount,
+            )
 
     async def _create_transaction(
         self,
@@ -84,6 +105,8 @@ class Orders(
     async def _update_balances(
         self,
         uow: core.UnitOfWork,
+        buy_order_id: UUID,
+        sell_order_id: UUID,
         buyer_id: UUID,
         seller_id: UUID,
         instrument_id: UUID,
@@ -91,9 +114,9 @@ class Orders(
         price: int,
     ) -> None:
         # Перевод инструмента покупателю
-        await self.balances_service.transfer(
+        await self._transfer_locked_amount_to_balance(
             uow,
-            from_user_id=seller_id,
+            from_order_id=sell_order_id,
             to_user_id=buyer_id,
             instrument_id=instrument_id,
             amount=qty,
@@ -102,12 +125,12 @@ class Orders(
         rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
 
         # Перевод рублей продавцу
-        await self.balances_service.transfer(
+        await self._transfer_locked_amount_to_balance(
             uow,
-            from_user_id=buyer_id,
+            from_order_id=buy_order_id,
             to_user_id=seller_id,
             instrument_id=rub_instrument.id,
-            amount=price * qty,
+            amount=price,
         )
 
     async def _execute_trade(
@@ -117,11 +140,13 @@ class Orders(
         sell_order: schemas.orders.Read,
         executed_qty: int,
     ) -> None:
-        # Если цена продажи выставлена - используем её, иначе цену покупки
         price = cast(int, sell_order.price) if sell_order.price else cast(int, buy_order.price)
+        price *= executed_qty
 
         await self._update_balances(
             uow,
+            buy_order_id=buy_order.id,
+            sell_order_id=sell_order.id,
             buyer_id=buy_order.user_id,
             seller_id=sell_order.user_id,
             instrument_id=buy_order.instrument.id,
@@ -138,7 +163,6 @@ class Orders(
             price=price,
         )
 
-        # Обновление ордера на покупку
         new_filled_buy = buy_order.filled + executed_qty
         buy_status = (
             models.OrderStatus.EXECUTED
@@ -146,18 +170,17 @@ class Orders(
             else models.OrderStatus.PARTIALLY_EXECUTED
         )
 
-        buy_order.locked_money -= executed_qty * price
-
         await self.update_by_id(
             uow,
             buy_order.id,
             schemas.orders.Update(
-                filled=new_filled_buy, status=buy_status, locked_money=buy_order.locked_money
+                filled=new_filled_buy,
+                status=buy_status,
             ),
         )
 
         if buy_status == models.OrderStatus.EXECUTED:
-            await self.return_left_locked_money(uow, buy_order)
+            await self._return_locked_amount(uow, buy_order.id)
 
         # Обновление ордера на продажу
         new_filled_sell = sell_order.filled + executed_qty
@@ -166,6 +189,9 @@ class Orders(
             if new_filled_sell == sell_order.qty
             else models.OrderStatus.PARTIALLY_EXECUTED
         )
+
+        if sell_status == models.OrderStatus.EXECUTED:
+            await self._return_locked_amount(uow, sell_order.id)
 
         await self.update_by_id(
             uow, sell_order.id, schemas.orders.Update(filled=new_filled_sell, status=sell_status)
@@ -193,6 +219,27 @@ class Orders(
 
         return orders[0]
 
+    async def reserve(
+        self, uow: core.UnitOfWork, user_id: UUID, instrument_id: UUID, order_id: UUID, amount: int
+    ) -> None:
+        balance = await self.balances_service.get_or_create_user_balance(
+            uow, user_id, instrument_id
+        )
+
+        new_balance = balance.amount - amount
+
+        if new_balance < 0:
+            instrument = await self.instruments_service.read_by_id(uow, instrument_id)
+            raise services.exceptions.InsufficientBalanceError(user_id, instrument.ticker)
+
+        await self.balances_service.update_by_id(
+            uow,
+            {"user_id": user_id, "instrument_id": instrument_id},
+            schemas.balance.Update(amount=new_balance),
+        )
+
+        await self.update_by_id(uow, order_id, schemas.orders.Update(locked_amount=amount))
+
     async def _handle_market_buy(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
         rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
 
@@ -207,19 +254,17 @@ class Orders(
 
             executed_qty = min(sell_order.qty - sell_order.filled, order.qty - order.filled)
 
-            locked_money = cast(int, sell_order.price) * executed_qty
-            await self.balances_service.reserve(
-                uow, order.user_id, rub_instrument.id, locked_money
-            )
-            order = await self.update_by_id(
-                uow, order.id, schemas.orders.Update(locked_money=locked_money)
+            locked_money_amount = cast(int, sell_order.price) * executed_qty
+            await self.reserve(
+                uow, order.user_id, rub_instrument.id, order.id, locked_money_amount
             )
 
             await self._execute_trade(uow, order, sell_order, executed_qty)
             filled += executed_qty
 
     async def _handle_market_sell(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
-        await self.balances_service.reserve(uow, order.user_id, order.instrument.id, order.qty)
+        await self.reserve(uow, order.user_id, order.instrument.id, order.id, order.qty)
+
         filled = order.filled
         while filled < order.qty:
             buy_order = await self._find_best_order(
@@ -235,9 +280,9 @@ class Orders(
 
     async def _handle_limit_buy(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
         rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
-        locked_money = cast(int, order.price) * order.qty
-        await self.balances_service.reserve(uow, order.user_id, rub_instrument.id, locked_money)
-        await self.update_by_id(uow, order.id, schemas.orders.Update(locked_money=locked_money))
+        locked_money_amount = cast(int, order.price) * order.qty
+
+        await self.reserve(uow, order.user_id, rub_instrument.id, order.id, locked_money_amount)
 
         filled = order.filled
         while filled < order.qty:
@@ -253,7 +298,7 @@ class Orders(
             filled += executed_qty
 
     async def _handle_limit_sell(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
-        await self.balances_service.reserve(uow, order.user_id, order.instrument.id, order.qty)
+        await self.reserve(uow, order.user_id, order.instrument.id, order.id, order.qty)
 
         filled = order.filled
         while filled < order.qty:
@@ -282,3 +327,12 @@ class Orders(
         await self.order_handlers[order.order_type, order.direction](uow, order)
 
         return order
+
+    async def cancel_order(self, uow: core.UnitOfWork, order_id: UUID):
+        order = await self.read_by_id(uow, order_id)
+
+        await self._return_locked_amount(uow, order)
+
+        await self.update_by_id(
+            uow, order_id, schemas.orders.Update(status=models.order.OrderStatus.CANCELLED)
+        )

@@ -31,7 +31,7 @@ class Direction(enum.StrEnum):
 
 class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "orders"
-    repr_cols = ("id", "status", "direction", "order_type", "qty")
+    repr_cols = ("id", "status", "direction", "order_type", "qty", "locked_amount")
 
     id: Mapped[Uuid] = mapped_column(Uuid, primary_key=True, default=uuid7)
     status: Mapped[OrderStatus] = mapped_column(default=OrderStatus.NEW)
@@ -42,7 +42,7 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     filled: Mapped[int] = mapped_column(default=0)
 
     price: Mapped[int | None] = mapped_column(default=None)
-    locked_money: Mapped[int] = mapped_column(default=0)
+    locked_amount: Mapped[int] = mapped_column(default=0)
 
     user_id: Mapped[Uuid] = mapped_column(
         Uuid,
@@ -57,5 +57,5 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 
     __table_args__ = (
         CheckConstraint("qty >= 1", name="check_qty_constraint"),
-        CheckConstraint("locked_money >= 0", name="check_locked_money_constraint"),
+        CheckConstraint("locked_amount >= 0", name="check_locked_amount_constraint"),
     )

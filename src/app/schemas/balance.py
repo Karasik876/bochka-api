@@ -23,7 +23,6 @@ class Create(Base):
 
 class Update(BaseModel):
     amount: BalanceOperationAmount | None = None
-    locked_amount: int | None = None
 
 
 class Read(Base):

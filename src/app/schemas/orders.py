@@ -48,7 +48,7 @@ class Read(Base):
     created_at: Annotated[datetime, Field(serialization_alias="timestamp")]
     instrument_id: UUID
 
-    locked_money: int
+    locked_amount: Annotated[int, Field(ge=0)]
 
     instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
     direction: Annotated[models.order.Direction, Field(exclude=True)]
@@ -90,16 +90,14 @@ class ReadResponse(Base):
     filled: int
 
     model_config = ConfigDict(
-        from_attributes=True,
-        serialize_by_alias=True,
-        validate_by_alias=True
-        )
+        from_attributes=True, serialize_by_alias=True, validate_by_alias=True
+    )
 
 
 class Update(BaseModel):
     status: models.order.OrderStatus | None = None
-    filled: int | None = None
-    locked_money: int | None = None
+    filled: Annotated[int, Field(ge=0)] | None = None
+    locked_amount: Annotated[int, Field(ge=0)] | None = None
 
 
 class SuccessResponse(BaseModel):
