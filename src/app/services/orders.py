@@ -38,6 +38,29 @@ class Orders(
         self.balances_service = services.Balances()
         self.transactions_service = services.Transactions()
 
+    async def return_left_locked_money(
+        self, uow: core.UnitOfWork, order: schemas.orders.Read
+    ) -> None:
+        rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
+        user_rub_balance = await self.balances_service.get_or_create_user_balance(
+            uow, order.user_id, rub_instrument.id
+        )
+
+        user_rub_balance.amount += order.locked_money
+        user_rub_balance.locked_amount -= order.locked_money
+        await self.balances_service.update_by_id(
+            uow,
+            {"user_id": order.user_id, "instrument_id": rub_instrument.id},
+            schemas.balance.Update(
+                amount=user_rub_balance.amount, locked_amount=user_rub_balance.locked_amount
+            ),
+        )
+        await self.update_by_id(
+            uow,
+            order.id,
+            schemas.orders.Update(locked_money=0),
+        )
+
     async def _create_transaction(
         self,
         uow: core.UnitOfWork,
@@ -148,49 +171,40 @@ class Orders(
             uow, sell_order.id, schemas.orders.Update(filled=new_filled_sell, status=sell_status)
         )
 
-    async def return_left_locked_money(
-        self, uow: core.UnitOfWork, order: schemas.orders.Read
-    ) -> None:
-        rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
-        user_rub_balance = await self.balances_service.get_or_create_user_balance(
-            uow, order.user_id, rub_instrument.id
+    async def _find_best_order(
+        self, uow: core.UnitOfWork, instrument_id: UUID, order_direction: models.OrderDirection
+    ) -> schemas.orders.Read | None:
+        orders = await self.read_many(
+            uow,
+            schemas.orders.Filters(
+                direction=order_direction,
+                instrument_id=instrument_id,
+                status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
+            ),
+            schemas.orders.SortParams(
+                sort_by=schemas.orders.SortFields.PRICE,
+                ascending=order_direction == models.OrderDirection.BUY,
+            ),
+            core.schemas.PaginationParams(limit=1),
         )
 
-        user_rub_balance.amount += order.locked_money
-        user_rub_balance.locked_amount -= order.locked_money
-        await self.balances_service.update_by_id(
-            uow,
-            {"user_id": order.user_id, "instrument_id": rub_instrument.id},
-            schemas.balance.Update(
-                amount=user_rub_balance.amount, locked_amount=user_rub_balance.locked_amount
-            ),
-        )
-        await self.update_by_id(
-            uow,
-            order.id,
-            schemas.orders.Update(locked_money=0),
-        )
+        if not orders:
+            return None
+
+        return orders[0]
 
     async def _handle_market_buy(self, uow: core.UnitOfWork, order: schemas.orders.Read) -> None:
         rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
 
         filled = order.filled
         while filled < order.qty:
-            sell_orders = await self.read_many(
-                uow,
-                schemas.orders.Filters(
-                    direction=models.OrderDirection.SELL,
-                    instrument_id=order.instrument.id,
-                    status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
-                ),
-                schemas.orders.SortParams(sort_by=schemas.orders.SortFields.PRICE, ascending=True),
-                core.schemas.PaginationParams(limit=1),
+            sell_order = await self._find_best_order(
+                uow, order.instrument.id, models.OrderDirection.SELL
             )
 
-            if not sell_orders:
+            if not sell_order:
                 raise exceptions.OrderRejectedError(order.id, order.qty, filled)
 
-            sell_order = sell_orders[0]
             executed_qty = min(sell_order.qty - sell_order.filled, order.qty - order.filled)
 
             locked_money = cast(int, sell_order.price) * executed_qty
@@ -208,24 +222,12 @@ class Orders(
         await self.balances_service.reserve(uow, order.user_id, order.instrument.id, order.qty)
         filled = order.filled
         while filled < order.qty:
-            # Ищем лучший ордер на покупку (самая высокая цена)
-            buy_orders = await self.read_many(
-                uow,
-                schemas.orders.Filters(
-                    direction=models.OrderDirection.BUY,
-                    instrument_id=order.instrument.id,
-                    status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
-                ),
-                schemas.orders.SortParams(
-                    sort_by=schemas.orders.SortFields.PRICE, ascending=False
-                ),
-                core.schemas.PaginationParams(limit=1),
+            buy_order = await self._find_best_order(
+                uow, order.instrument.id, models.OrderDirection.BUY
             )
-
-            if not buy_orders:
+            if not buy_order:
                 raise exceptions.OrderRejectedError(order.id, order.qty, filled)
 
-            buy_order = buy_orders[0]
             executed_qty = min(buy_order.qty - buy_order.filled, order.qty - order.filled)
 
             await self._execute_trade(uow, buy_order, order, executed_qty)
@@ -239,23 +241,12 @@ class Orders(
 
         filled = order.filled
         while filled < order.qty:
-            # Ищем подходящие ордера на продажу (цена <= лимита)
-            sell_orders = await self.read_many(
-                uow,
-                schemas.orders.Filters(
-                    direction=models.OrderDirection.SELL,
-                    instrument_id=order.instrument.id,
-                    status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
-                    price_to=order.price,
-                ),
-                schemas.orders.SortParams(sort_by=schemas.orders.SortFields.PRICE, ascending=True),
-                core.schemas.PaginationParams(limit=1),
+            sell_order = await self._find_best_order(
+                uow, order.instrument.id, models.OrderDirection.SELL
             )
+            if not sell_order:
+                break
 
-            if not sell_orders:
-                break  # Нет подходящих предложений
-
-            sell_order = sell_orders[0]
             executed_qty = min(sell_order.qty - sell_order.filled, order.qty - order.filled)
 
             await self._execute_trade(uow, order, sell_order, executed_qty)
@@ -266,25 +257,12 @@ class Orders(
 
         filled = order.filled
         while filled < order.qty:
-            # Ищем подходящие ордера на покупку (цена >= лимита)
-            buy_orders = await self.read_many(
-                uow,
-                schemas.orders.Filters(
-                    direction=models.OrderDirection.BUY,
-                    instrument_id=order.instrument.id,
-                    status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
-                    price_from=order.price,
-                ),
-                schemas.orders.SortParams(
-                    sort_by=schemas.orders.SortFields.PRICE, ascending=False
-                ),
-                core.schemas.PaginationParams(limit=1),
+            buy_order = await self._find_best_order(
+                uow, order.instrument.id, models.OrderDirection.BUY
             )
+            if not buy_order:
+                break
 
-            if not buy_orders:
-                break  # Нет подходящих предложений
-
-            buy_order = buy_orders[0]
             executed_qty = min(buy_order.qty - buy_order.filled, order.qty - order.filled)
 
             await self._execute_trade(uow, buy_order, order, executed_qty)

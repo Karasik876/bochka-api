@@ -28,7 +28,6 @@ class Base(BaseModel):
 
 class Create(Base):
     ticker: instrument_schemas.Ticker
-    status: models.order.OrderStatus = models.order.OrderStatus.NEW
     price: LimitOrderPrice | None = None
 
 
