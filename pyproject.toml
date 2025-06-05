@@ -167,6 +167,9 @@ addopts = [
     "--strict-config",
     "-ra"
 ]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 testpaths = [
     "tests",
     "integration",

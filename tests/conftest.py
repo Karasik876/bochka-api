@@ -1,4 +1,5 @@
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Iterator
+from dataclasses import dataclass
 from typing import TypeVar
 from uuid import UUID
 
@@ -135,6 +136,35 @@ async def user_rub_balance(
     return await create_in_db(
         db_session,
         models.Balance(user_id=user.id, instrument_id=rub_instrument.id, amount=1000),
+    )
+
+
+@dataclass
+class AllBalances:
+    user_balance: models.Balance
+    user_rub_balance: models.Balance
+    admin_balance: models.Balance
+    admin_rub_balance: models.Balance
+
+    def __iter__(self) -> Iterator[models.Balance]:
+        yield self.user_balance
+        yield self.user_rub_balance
+        yield self.admin_balance
+        yield self.admin_rub_balance
+
+
+@pytest.fixture(scope="function")
+def all_balances(
+    user_balance: models.Balance,
+    user_rub_balance: models.Balance,
+    admin_balance: models.Balance,
+    admin_rub_balance: models.Balance,
+) -> AllBalances:
+    return AllBalances(
+        user_balance=user_balance,
+        user_rub_balance=user_rub_balance,
+        admin_balance=admin_balance,
+        admin_rub_balance=admin_rub_balance,
     )
 
 

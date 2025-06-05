@@ -1,11 +1,13 @@
 from collections.abc import Callable
 
 import pytest
+from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app import models, schemas
+from tests.conftest import AllBalances
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -50,10 +52,7 @@ async def test_execute_limit_order_by_market_order(
     user_client: AsyncClient,
     instrument: models.Instrument,
     admin_user: models.User,
-    user_rub_balance: models.Balance,
-    user_balance: models.Balance,
-    admin_rub_balance: models.Balance,
-    admin_balance: models.Balance,
+    all_balances: AllBalances,
     create_order: Callable,
     limit_direction,
     market_direction,
@@ -61,7 +60,7 @@ async def test_execute_limit_order_by_market_order(
     qty_diff,
 ):
     start_user_balance, start_user_rub_balance, start_admin_balance, start_admin_rub_balance = [
-        b.amount for b in [user_balance, user_rub_balance, admin_balance, admin_rub_balance]
+        b.amount for b in all_balances
     ]
 
     limit_order_qty = 10
@@ -130,13 +129,66 @@ async def test_execute_limit_order_by_market_order(
     price = limit_order.price
     if market_direction == models.order.Direction.BUY:
         # Market BUY: user spends RUB, receives instrument; admin receives RUB, loses instrument
-        assert user_rub_balance.amount == start_user_rub_balance - trade_qty * price
-        assert admin_rub_balance.amount == start_admin_rub_balance + trade_qty * price
-        assert user_balance.amount == start_user_balance + trade_qty
-        assert admin_balance.amount == start_admin_balance - trade_qty
+        assert all_balances.user_rub_balance.amount == start_user_rub_balance - trade_qty * price
+        assert all_balances.admin_rub_balance.amount == start_admin_rub_balance + trade_qty * price
+        assert all_balances.user_balance.amount == start_user_balance + trade_qty
+        assert all_balances.admin_balance.amount == start_admin_balance - trade_qty
     else:
         # Market SELL: user receives RUB, loses instrument; admin spends RUB, receives instrument
-        assert user_rub_balance.amount == start_user_rub_balance + trade_qty * price
-        assert admin_rub_balance.amount == start_admin_rub_balance - trade_qty * price
-        assert user_balance.amount == start_user_balance - trade_qty
-        assert admin_balance.amount == start_admin_balance + trade_qty
+        assert all_balances.user_rub_balance.amount == start_user_rub_balance + trade_qty * price
+        assert all_balances.admin_rub_balance.amount == start_admin_rub_balance - trade_qty * price
+        assert all_balances.user_balance.amount == start_user_balance - trade_qty
+        assert all_balances.admin_balance.amount == start_admin_balance + trade_qty
+
+
+@pytest.mark.parametrize(
+    ("limit_direction", "market_direction"),
+    [
+        (
+            models.order.Direction.SELL,
+            models.order.Direction.BUY,
+        ),
+        (
+            models.order.Direction.BUY,
+            models.order.Direction.SELL,
+        ),
+    ],
+    ids=[
+        "insufficient_limit_sell_orders",
+        "insufficient_limit_buy_orders",
+    ],
+)
+async def test_market_fails_with_insufficient_limit_orders(
+    db_session: AsyncSession,
+    user_client: AsyncClient,
+    instrument: models.Instrument,
+    admin_user: models.User,
+    create_order: Callable,
+    all_balances: AllBalances,
+    limit_direction,
+    market_direction,
+):
+    limit_order: models.Order = await create_order(
+        direction=limit_direction,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=10,
+        price=10,
+        status=models.order.OrderStatus.NEW,
+    )
+
+    trade_qty = limit_order.qty + 1
+
+    market_order_create = schemas.orders.CreateRequest(
+        direction=market_direction,
+        ticker=instrument.ticker,
+        qty=trade_qty,
+    )
+    response = await user_client.post("/order", json=market_order_create.model_dump())
+
+    response_json = response.json()
+
+    assert "detail" in response_json
+    assert response_json["error_code"] == "market_order_not_filled"
+    assert f"<{limit_order.qty}/{trade_qty}>" in response_json["detail"]
+    assert response.status_code == status.HTTP_400_BAD_REQUEST

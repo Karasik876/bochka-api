@@ -22,6 +22,7 @@ def make_serialization_error() -> OperationalError:
     return OperationalError("serialization error", params=None, orig=orig)
 
 
+@pytest.mark.slow
 async def test_create_retries_on_serialization_error(mock_uow: None, db_session: AsyncSession):
     instruments_repo = repositories.Instruments()
 
@@ -67,6 +68,7 @@ async def test_isolation_level_serializable(db_session: AsyncSession):
     assert isolation == "serializable"
 
 
+@pytest.mark.slow
 async def test_endpoint_retries_on_serialization_error(
     admin_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ):
