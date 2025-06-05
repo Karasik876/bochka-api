@@ -31,20 +31,30 @@ async def create_order(
     return schemas.orders.CreateSuccess(order_id=order.id)
 
 
-@router.get("", dependencies=[Depends(dependencies.permissions.get_current_user)])
-async def get_my_orders():
-    raise NotImplementedError
+@router.get("", response_model=list[schemas.orders.ReadResponse])
+async def get_my_orders(
+    orders_service: dependencies.services.Orders,
+    uow: dependencies.uow.Postgres,
+    current_user: dependencies.permissions.CurrentUser,
+):
+    return [
+        schemas.orders.ReadResponse.model_validate(order)
+        for order in await orders_service.read_many(
+            uow, filters=schemas.orders.Filters(user_id=current_user.id)
+        )
+    ]
 
 
 @router.get(
     "/{order_id}",
     dependencies=[Depends(dependencies.permissions.get_current_user)],
-    response_model=schemas.orders.Read,
+    response_model=schemas.orders.ReadResponse,
 )
 async def get_order(
-    order_id: UUID, order_service: dependencies.services.Orders, uow: dependencies.uow.Postgres
+    order_id: UUID, orders_service: dependencies.services.Orders, uow: dependencies.uow.Postgres
 ):
-    return await order_service.read_by_id(uow, order_id)
+    order = await orders_service.read_by_id(uow, order_id)
+    return schemas.orders.ReadResponse.model_validate(order)
 
 
 @router.delete(

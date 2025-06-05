@@ -65,14 +65,11 @@ class ReadResponse(Base):
     status: models.order.OrderStatus
     user_id: UUID
     created_at: Annotated[datetime, Field(serialization_alias="timestamp")]
-    instrument_id: UUID
 
     instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
     direction: Annotated[models.order.Direction, Field(exclude=True)]
     qty: Annotated[OrderQuantity, Field(exclude=True)]
     price: Annotated[LimitOrderPrice | None, Field(exclude=True)]
-
-    filled: int
 
     @computed_field
     @property
@@ -90,7 +87,13 @@ class ReadResponse(Base):
             )
         )
 
-    model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
+    filled: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        serialize_by_alias=True,
+        validate_by_alias=True
+        )
 
 
 class Update(BaseModel):
