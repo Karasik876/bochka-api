@@ -81,6 +81,9 @@ class Read(BaseModel):
             )
         )
 
+    def __lt__(self, other: "Read") -> bool:
+        return self.id < other.id
+
     model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
 
 

@@ -66,11 +66,6 @@ async def get_orderbook(
     bids = extract_levels(order_book.bids, is_bid=True)
     asks = extract_levels(order_book.asks, is_bid=False)
 
-    print("pudgebids")
-    print(bids)
-    print("asks")
-    print(asks)
-
     return schemas.orders.OrderBookRead(
         bid_levels=[schemas.orders.OrderBookLevel.model_validate(bid) for bid in bids],
         ask_levels=[schemas.orders.OrderBookLevel.model_validate(ask) for ask in asks],
