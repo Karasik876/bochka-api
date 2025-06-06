@@ -1,4 +1,3 @@
-import re
 from fastapi import APIRouter
 
 from src import core
