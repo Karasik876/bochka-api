@@ -33,8 +33,10 @@ async def get_instruments_tickers(
 
 
 @router.get("/orderbook/{ticker}")
-async def get_orderbook(ticker: str):
-    raise NotImplementedError
+async def get_orderbook(
+    ticker: str, limit: int, uow: dependencies.uow.Postgres, service: dependencies.services.Orders
+):
+    return await service.get_order_book(uow, ticker, limit)
 
 
 @router.get("/transactions/{ticker}")

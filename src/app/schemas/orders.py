@@ -115,6 +115,16 @@ class CreateSuccess(SuccessResponse):
     order_id: UUID
 
 
+class OrderBookLevel(BaseModel):
+    price: LimitOrderPrice
+    qty: OrderQuantity
+
+
+class OrderBook(BaseModel):
+    bid_levels: list[OrderBookLevel]
+    ask_levels: list[OrderBookLevel]
+
+
 class Filters(core.schemas.BaseFilters):
     direction: list[models.order.Direction] | models.order.Direction | None = None
     instrument_id: list[UUID] | UUID | None = None
