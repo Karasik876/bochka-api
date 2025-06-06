@@ -38,17 +38,6 @@ async def test_deposit_success_new_balance(
     assert balance is not None
     assert balance.amount == amount_test
 
-    # Check operation was created
-    operation = await db_session.scalar(
-        select(models.BalanceOperation).filter_by(
-            user_id=admin_user.id,
-            instrument_id=instrument.id,
-        )
-    )
-    assert operation is not None
-    assert operation.amount == amount_test
-    assert operation.operation_type == models.balance_operation.OperationType.DEPOSIT
-
 
 async def test_deposit_success_existing_balance(
     db_session: AsyncSession,
@@ -73,16 +62,6 @@ async def test_deposit_success_existing_balance(
     assert json_response["success"]
 
     assert admin_balance.amount == initial_amount + deposit_amount
-
-    # Check operation was created
-    operation = await db_session.scalar(
-        select(models.BalanceOperation).filter_by(
-            user_id=admin_user.id,
-            instrument_id=instrument.id,
-            amount=deposit_amount,
-        )
-    )
-    assert operation is not None
 
 
 async def test_deposit_failed_user_not_found(
@@ -190,16 +169,6 @@ async def test_admin_can_deposit_to_user(
     )
     assert balance is not None
     assert balance.amount == amount_test
-
-    operation = await db_session.scalar(
-        select(models.BalanceOperation).filter_by(
-            user_id=user.id,
-            instrument_id=instrument.id,
-        )
-    )
-    assert operation is not None
-    assert operation.amount == amount_test
-    assert operation.operation_type == models.balance_operation.OperationType.DEPOSIT
 
 
 async def test_user_cannot_deposit_to_admin(

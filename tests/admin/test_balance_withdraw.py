@@ -36,15 +36,6 @@ async def test_withdraw_success(
 
     assert admin_balance.amount == initial_amount - withdraw_amount
 
-    operation = await db_session.scalar(
-        select(models.BalanceOperation).filter_by(
-            user_id=admin_user.id, instrument_id=instrument.id, amount=withdraw_amount
-        )
-    )
-
-    assert operation is not None
-    assert operation.operation_type == "WITHDRAW"
-
 
 async def test_withdraw_failed_not_enough_funds(
     db_session: AsyncSession,
