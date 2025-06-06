@@ -375,3 +375,5 @@ class Orders(
         await self.update_by_id(
             uow, order_id, schemas.orders.Update(status=models.order.OrderStatus.CANCELLED)
         )
+
+        await self.repo.delete_by_id(uow, order_id)
