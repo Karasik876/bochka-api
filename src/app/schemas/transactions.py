@@ -45,7 +45,7 @@ class CreateResponse(BaseModel):
 
 
 class Filters(core.schemas.BaseFilters):
-    pass
+    ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
 
 
 class SortFields(enum.StrEnum):

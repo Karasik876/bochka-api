@@ -82,12 +82,6 @@ async def cancel_order(
             message="You dont have permission to cancel this order", service_name="Orders"
         )
 
-    await orders_service.update_by_id(
-        uow, order_id, schemas.orders.Update(status=models.order.OrderStatus.CANCELLED)
-    )
+    await orders_service.refund_locked_amount(uow, order)
 
-    # Since cancelled orders should not be released with all of them and cannot be restored,
-    # we delete them so as not to make additional status checks.
-    await orders_service.delete_by_id(uow, order_id)
-
-    return schemas.orders.SuccessResponse()
+    return schemas.orders.SuccessResponse(success=await orders_service.delete_by_id(uow, order_id))

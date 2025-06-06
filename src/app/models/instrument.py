@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class Instrument(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "instruments"
+    __soft_delete_cascades__ = ("balances", "balance_operations", "orders", "transactions")
     repr_cols = ("ticker", "name")
 
     id: Mapped[Uuid] = mapped_column(Uuid, primary_key=True, default=uuid7)

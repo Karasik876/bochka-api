@@ -71,6 +71,13 @@ async def get_orderbook(
     )
 
 
-@router.get("/transactions/{ticker}")
-async def get_transactions(ticker: str):
-    raise NotImplementedError
+@router.get("/transactions/{ticker}", response_model=list[schemas.transactions.Read])
+async def get_transactions(
+    uow: dependencies.uow.Postgres,
+    transactions_service: dependencies.services.Transactions,
+    ticker: schemas.instruments.Ticker,
+    pagination: Annotated[PaginationParams, Query()],
+):
+    return transactions_service.read_many(
+        uow, filters=schemas.transactions.Filters(ticker=ticker), pagination=pagination
+    )

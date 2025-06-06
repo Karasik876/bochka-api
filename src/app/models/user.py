@@ -23,6 +23,7 @@ class UserRole(enum.StrEnum):
 
 class User(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     __tablename__ = "users"
+    __soft_delete_cascades__ = ("balances", "orders", "operations")
     repr_cols = ("id", "name", "role")
 
     id: Mapped[Uuid] = mapped_column(Uuid, primary_key=True, default=uuid7)

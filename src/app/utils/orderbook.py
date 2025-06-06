@@ -70,7 +70,7 @@ class OrderBook:
             if sell_order.created_at < buy_order.created_at
             or (
                 sell_order.price and not buy_order.price
-            )  # Fixes tests that create orders at the same time
+            )  # if orders were created at the same time (happens in tests)
             else buy_order
         )
         if maker_order.price is None:
