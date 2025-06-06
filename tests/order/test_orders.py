@@ -284,3 +284,205 @@ async def test_market_buy_executes_two_limit_sells(
     assert all_balances.admin_rub_balance.amount == start_admin_rub_balance + transferred_money
     assert all_balances.user_balance.amount == start_user_balance + trade_qty
     assert all_balances.admin_balance.amount == start_admin_balance - trade_qty
+
+
+async def test_limit_buy_executes_limit_sells(
+    db_session: AsyncSession,
+    user_client: AsyncClient,
+    admin_user: models.User,
+    instrument: models.Instrument,
+    create_order: Callable,
+    all_balances: AllBalances,
+):
+    start_user_balance, start_user_rub_balance, start_admin_balance, start_admin_rub_balance = [
+        b.amount for b in all_balances
+    ]
+
+    limit_order1 = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=10,
+        price=1,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order2 = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=20,
+        price=2,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order3 = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=30,
+        price=3,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order4 = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=40,
+        price=4,
+        status=models.order.OrderStatus.NEW,
+    )
+
+    qty_diff = 5
+    total_qty = sum(
+        order.qty for order in [limit_order1, limit_order2, limit_order3, limit_order4]
+    )
+    trade_qty = total_qty + qty_diff
+
+    buy_order_price = 5
+    limit_buy_order_create = schemas.orders.CreateRequest(
+        direction=models.order.Direction.BUY,
+        ticker=instrument.ticker,
+        qty=trade_qty,
+        price=buy_order_price,
+    )
+    response = await user_client.post("/order", json=limit_buy_order_create.model_dump())
+    assert "detail" not in response.json()
+
+    assert (
+        len(
+            (
+                await db_session.scalars(
+                    select(models.Order).filter_by(order_type=models.order.OrderType.MARKET)
+                )
+            ).all()
+        )
+        == 0
+    )
+
+    limit_sell_orders_db = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+    )
+    assert len(limit_sell_orders_db) == 4  # noqa: PLR2004
+
+    assert all(order.status == models.order.OrderStatus.EXECUTED for order in limit_sell_orders_db)
+
+    limit_buy_orders_db = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.BUY
+    )
+
+    assert len(limit_buy_orders_db) == 1
+    limit_buy_order_db = limit_buy_orders_db[0]
+    assert limit_buy_order_db.status == models.order.OrderStatus.PARTIALLY_EXECUTED
+    assert limit_buy_order_db.filled == total_qty
+    assert limit_buy_order_db.locked_money_amount == qty_diff * buy_order_price
+
+    transferred_money = sum(
+        (order.filled or 0) * (order.price or 0) for order in limit_sell_orders_db
+    )
+
+    assert all_balances.user_rub_balance.amount == start_user_rub_balance - transferred_money
+    assert all_balances.admin_rub_balance.amount == start_admin_rub_balance + transferred_money
+    assert all_balances.user_balance.amount == start_user_balance + total_qty
+    assert all_balances.admin_balance.amount == start_admin_balance - total_qty
+
+
+async def test_limit_sell_executes_limit_buys(
+    db_session: AsyncSession,
+    user_client: AsyncClient,
+    admin_user: models.User,
+    instrument: models.Instrument,
+    create_order: Callable,
+    all_balances: AllBalances,
+):
+    start_user_balance, start_user_rub_balance, start_admin_balance, start_admin_rub_balance = [
+        b.amount for b in all_balances
+    ]
+
+    limit_order1 = await create_order(
+        direction=models.order.Direction.BUY,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=20,
+        price=2,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order2 = await create_order(
+        direction=models.order.Direction.BUY,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=30,
+        price=3,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order3 = await create_order(
+        direction=models.order.Direction.BUY,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=40,
+        price=4,
+        status=models.order.OrderStatus.NEW,
+    )
+    limit_order4 = await create_order(
+        direction=models.order.Direction.BUY,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=50,
+        price=5,
+        status=models.order.OrderStatus.NEW,
+    )
+
+    qty_diff = 5
+    total_qty = sum(
+        order.qty for order in [limit_order1, limit_order2, limit_order3, limit_order4]
+    )
+    trade_qty = total_qty + qty_diff
+
+    sell_order_price = 1
+    limit_sell_order_create = schemas.orders.CreateRequest(
+        direction=models.order.Direction.SELL,
+        ticker=instrument.ticker,
+        qty=trade_qty,
+        price=sell_order_price,
+    )
+    response = await user_client.post("/order", json=limit_sell_order_create.model_dump())
+    assert "detail" not in response.json()
+
+    assert (
+        len(
+            (
+                await db_session.scalars(
+                    select(models.Order).filter_by(order_type=models.order.OrderType.MARKET)
+                )
+            ).all()
+        )
+        == 0
+    )
+
+    limit_buy_orders_db = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.BUY
+    )
+    assert len(limit_buy_orders_db) == 4  # noqa: PLR2004
+
+    assert all(order.status == models.order.OrderStatus.EXECUTED for order in limit_buy_orders_db)
+
+    limit_sell_orders_db = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+    )
+
+    assert len(limit_sell_orders_db) == 1
+    limit_sell_order_db = limit_sell_orders_db[0]
+    assert limit_sell_order_db.status == models.order.OrderStatus.PARTIALLY_EXECUTED
+    assert limit_sell_order_db.filled == total_qty
+    assert (
+        limit_sell_order_db.locked_instrument_amount
+        == qty_diff
+        == limit_sell_order_db.qty - (limit_sell_order_db.filled or 0)
+    )
+
+    transferred_money = sum(
+        (order.filled or 0) * (order.price or 0) for order in limit_sell_orders_db
+    )
+
+    assert all_balances.user_rub_balance.amount == start_user_rub_balance + transferred_money
+    assert all_balances.admin_rub_balance.amount == start_admin_rub_balance - transferred_money
+    assert all_balances.user_balance.amount == start_user_balance - total_qty
+    assert all_balances.admin_balance.amount == start_admin_balance + total_qty

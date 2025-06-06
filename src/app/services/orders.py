@@ -144,6 +144,22 @@ class Orders(
         print(f"Weaver created ORDER: {order}")
         order_book_manager = utils.get_order_book_manager()
 
+        if order_type == models.order.OrderType.LIMIT:
+            order_book = await order_book_manager.get_order_book(uow, instrument_id)
+
+            if direction == models.order.Direction.BUY:
+                best_ask_order = order_book.asks[0] if order_book.asks else None
+                print(f"!!! best_ask_order {best_ask_order}")
+                if best_ask_order and order.price >= best_ask_order.price:
+                    print("!!!! goes to execute ask")
+                    await self._execute_aggressive_limit_order(uow, order_book, order)
+            else:  # SELL
+                best_bid_order = order_book.bids[0] if order_book.bids else None
+                print(f"!!! best_bid_order {best_bid_order}")
+                if best_bid_order and order.price <= best_bid_order.price:
+                    print("!!! goes to execute")
+                    await self._execute_aggressive_limit_order(uow, order_book, order)
+
         if order_type == models.order.OrderType.MARKET:
             await self._execute_market_order(
                 uow=uow,
@@ -196,3 +212,74 @@ class Orders(
         if remaining_qty != 0:
             order_book_manager.clear_order_book(instrument_id)
             raise services.exceptions.OrderRejectedError(order.id, order.qty, remaining_qty)
+
+    async def _execute_aggressive_limit_order(
+        self,
+        uow: UnitOfWork,
+        order_book: utils.orderbook.OrderBook,
+        order: schemas.orders.Read,
+    ) -> None:
+        remaining_qty = order.qty - (order.filled or 0)
+        locked_price = order.price
+        assert locked_price is not None
+        total_spent = 0
+        print(f"!!! remaining_qty {remaining_qty}")
+        print(f"!!! locked_price {locked_price}")
+        current_order = order
+        while remaining_qty > 0:
+            if order.direction == models.order.Direction.BUY:
+                best_ask_order = order_book.asks[0] if order_book.asks else None
+                print(f"!!! EXECUTE best_ask_order {best_ask_order} ")
+
+                if (
+                    not best_ask_order
+                    or best_ask_order.price is None
+                    or best_ask_order.price > locked_price
+                ):
+                    break
+
+                if (available_qty := best_ask_order.qty - (best_ask_order.filled or 0)) == 0:
+                    break
+
+                print(f"!!! available_qty {available_qty}")
+                trade_qty = min(remaining_qty, available_qty)
+                print(f"!!! trade_qty {trade_qty}")
+                execution_price = best_ask_order.price
+                print(f"!!! execution_price {execution_price}")
+
+                updated_orders = await order_book.execute_trade(
+                    uow,
+                    current_order,  # type: ignore[valid-type]
+                    best_ask_order,
+                    trade_qty,
+                )
+                current_order = updated_orders[0]
+
+                total_spent += execution_price * trade_qty
+                remaining_qty -= trade_qty
+                print(f"!!! total_spent {total_spent}")
+                print(f"!!! remaining_qty AFTER {remaining_qty} ")
+
+            else:  # SELL
+                best_bid_order = order_book.bids[0] if order_book.bids else None
+                if (
+                    not best_bid_order
+                    or best_bid_order.price is None
+                    or best_bid_order.price < locked_price
+                ):
+                    break
+
+                if (available_qty := best_bid_order.qty - (best_bid_order.filled or 0)) == 0:
+                    break
+
+                trade_qty = min(remaining_qty, available_qty)
+
+                updated_orders = await order_book.execute_trade(
+                    uow,
+                    best_bid_order,
+                    current_order,  # type: ignore[valid-type]
+                    trade_qty,
+                )
+                current_order = updated_orders[1]
+
+                remaining_qty -= trade_qty

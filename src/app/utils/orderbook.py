@@ -44,6 +44,7 @@ class OrderBook:
 
     @staticmethod
     def _update_best_order(heap: OrderHeap, updated_order: schemas.orders.Read):
+        print("!!! going to update")
         # O(1)
         if heap and (best_order := heap[0]).id == updated_order.id:
             best_order.filled = updated_order.filled
@@ -83,10 +84,9 @@ class OrderBook:
         buy_order: schemas.orders.Read,
         sell_order: schemas.orders.Read,
         quantity: int,
-    ) -> None:
+    ) -> tuple[schemas.orders.Read | None, schemas.orders.Read | None]:
         # maker price
         execution_price = self.get_execution_price(buy_order, sell_order)
-        print(f"weaver qty start {quantity}")
 
         await uow.transaction_service.create(
             uow,
@@ -120,27 +120,37 @@ class OrderBook:
         print(f"WEAVER quantity {quantity}")
         print(f"WEAVER execution_price {execution_price}")
 
+        updated_buy_order = None
+        updated_sell_order = None
         for order in [buy_order, sell_order]:
+            print(f"!!! going for order in {order}")
             if order.order_type == models.order.OrderType.LIMIT:
                 updated_filled = (order.filled or 0) + quantity
+                print(f"!!! updated_filled {updated_filled}")
                 updated_status = (
                     models.order.OrderStatus.EXECUTED
                     if updated_filled == order.qty
                     else models.order.OrderStatus.PARTIALLY_EXECUTED
                 )
-
+                print(f"!!! updated_status {updated_status}")
+                print(f"!!! order direction {order.direction}")
                 if order.direction == models.order.Direction.BUY:  # limit buy order
-                    updated_locked_money_amount = (
-                        order.locked_money_amount or 0
-                    ) - quantity * execution_price
+                    updated_locked_money_amount = (order.locked_money_amount or 0) - quantity * (
+                        order.price or 0
+                    )
+
+                    print(f"!!! updated_locked_money_amount {updated_locked_money_amount}")
+
                     buy_order_update = schemas.orders.Update(
                         filled=updated_filled,
                         status=updated_status,
                         locked_money_amount=updated_locked_money_amount,
                     )
+                    print(f"!!! buy_order_update {buy_order_update}")
                     updated_buy_order = await uow.order_service.update_by_id(
                         uow, order.id, buy_order_update
                     )
+                    print(f"!!! updated_buy_order {updated_buy_order}")
                     if updated_buy_order.status == models.order.OrderStatus.EXECUTED:
                         self._remove_best_order(self.bids, updated_buy_order.id)
                     else:
@@ -149,15 +159,22 @@ class OrderBook:
                     updated_locked_instrument_amount = (
                         order.locked_instrument_amount or 0
                     ) - quantity
+                    print(
+                        f"!!! updated_locked_instrument_amount {updated_locked_instrument_amount}"
+                    )
                     sell_order_update = schemas.orders.Update(
                         filled=updated_filled,
                         status=updated_status,
                         locked_instrument_amount=updated_locked_instrument_amount,
                     )
+                    print(f"!!! sell_order_update {sell_order_update}")
                     updated_sell_order = await uow.order_service.update_by_id(
                         uow, order.id, sell_order_update
                     )
+                    print(f"!!! updated_sell_order {updated_sell_order}")
                     if updated_sell_order.status == models.order.OrderStatus.EXECUTED:
                         self._remove_best_order(self.asks, updated_sell_order.id)
                     else:
                         self._update_best_order(self.asks, updated_sell_order)
+
+        return (updated_buy_order, updated_sell_order)
