@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter
 
 from src import core
@@ -32,20 +33,23 @@ async def get_instruments_tickers(
     return await service.get_all_instruments(uow)
 
 
-@router.get("/orderbook/{ticker}")
+@router.get("/orderbook/{ticker}", response_model=schemas.orders.OrderBook)
 async def get_orderbook(
-    ticker: str, limit: int, uow: dependencies.uow.Postgres, service: dependencies.services.Orders
+    uow: dependencies.uow.Postgres,
+    service: dependencies.services.Orders,
+    ticker: str,
+    limit: int = 10,
 ):
     return await service.get_order_book(uow, ticker, limit)
 
 
 @router.get("/transactions/{ticker}", response_model=list[schemas.transactions.Read])
 async def get_transactions(
-    ticker: str,
-    limit: int,
     uow: dependencies.uow.Postgres,
     instruments_service: dependencies.services.Instruments,
     transactions_service: dependencies.services.Transactions,
+    ticker: str,
+    limit: int = 10,
 ):
     instrument = await instruments_service.read_by_ticker(uow, ticker)
     return await transactions_service.read_many(

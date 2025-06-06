@@ -26,6 +26,32 @@ class Balances(
 
         self.instrument_service = services.Instruments()
 
+    async def transfer(
+        self,
+        uow: core.UnitOfWork,
+        from_user_id: UUID,
+        to_user_id: UUID,
+        instrument_id: UUID,
+        amount: int,
+    ) -> None:
+        from_balance = await self.get_or_create_user_balance(uow, from_user_id, instrument_id)
+
+        to_balance = await self.get_or_create_user_balance(uow, to_user_id, instrument_id)
+
+        from_balance.amount -= amount
+        to_balance.amount += amount
+
+        await self.update_by_id(
+            uow,
+            {"user_id": from_user_id, "instrument_id": instrument_id},
+            schemas.balance.Update(amount=from_balance.amount),
+        )
+        await self.update_by_id(
+            uow,
+            {"user_id": to_user_id, "instrument_id": instrument_id},
+            schemas.balance.Update(amount=to_balance.amount),
+        )
+
     async def get_or_create_user_balance(
         self, uow: core.UnitOfWork, user_id: UUID, instrument_id: UUID
     ) -> schemas.balance.Read:

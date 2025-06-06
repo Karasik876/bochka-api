@@ -12,8 +12,8 @@ def register_error_handlers(app: FastAPI) -> None:
     ) -> ORJSONResponse:
         return core.error_handlers.make_error_response(
             str(exc),
-            "Not enough balance",
-            "not_enough_balance",
+            "Not enough funds",
+            "not_enough_funds",
             status.HTTP_400_BAD_REQUEST,
         )
 

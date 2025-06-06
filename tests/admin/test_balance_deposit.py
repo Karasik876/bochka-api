@@ -55,9 +55,9 @@ async def test_deposit_success_existing_balance(
     admin_client: AsyncClient,
     admin_user: models.User,
     instrument: models.Instrument,
-    balance: models.Balance,
+    admin_balance: models.Balance,
 ):
-    initial_amount = balance.amount
+    initial_amount = admin_balance.amount
     deposit_amount = 500
 
     deposit_data = {
@@ -72,7 +72,7 @@ async def test_deposit_success_existing_balance(
     assert "detail" not in json_response
     assert json_response["success"]
 
-    assert balance.amount == initial_amount + deposit_amount
+    assert admin_balance.amount == initial_amount + deposit_amount
 
     # Check operation was created
     operation = await db_session.scalar(

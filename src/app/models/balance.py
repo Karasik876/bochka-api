@@ -16,6 +16,8 @@ class Balance(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 
     amount: Mapped[int] = mapped_column(default=0)
 
+    locked_amount: Mapped[int] = mapped_column(default=0)
+
     user_id: Mapped[Uuid] = mapped_column(Uuid, ForeignKey("users.id"), primary_key=True)
     instrument_id: Mapped[Uuid] = mapped_column(
         Uuid, ForeignKey("instruments.id"), primary_key=True

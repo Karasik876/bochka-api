@@ -14,6 +14,7 @@ from src import core
 from src.app import models
 
 from . import instruments as instrument_schemas
+from . import users as users_schemas
 
 settings = core.config.get_settings()
 
@@ -49,6 +50,7 @@ class Read(Base):
 
     locked_amount: Annotated[int, Field(ge=0)]
 
+    user: Annotated[users_schemas.Read, Field(exclude=True)]
     instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
     direction: Annotated[models.order.Direction, Field(exclude=True)]
     qty: Annotated[OrderQuantity, Field(exclude=True)]

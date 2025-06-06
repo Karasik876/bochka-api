@@ -17,9 +17,9 @@ async def test_withdraw_success(
     admin_client: AsyncClient,
     admin_user: models.User,
     instrument: models.Instrument,
-    balance: models.Balance,
+    admin_balance: models.Balance,
 ):
-    initial_amount = balance.amount
+    initial_amount = admin_balance.amount
 
     withdraw_amount = 500
     withdraw_data = {
@@ -34,7 +34,7 @@ async def test_withdraw_success(
     json_response = response.json()
     assert json_response["success"]
 
-    assert balance.amount == initial_amount - withdraw_amount
+    assert admin_balance.amount == initial_amount - withdraw_amount
 
     operation = await db_session.scalar(
         select(models.BalanceOperation).filter_by(
@@ -51,9 +51,9 @@ async def test_withdraw_failed_not_enough_funds(
     admin_client: AsyncClient,
     admin_user: models.User,
     instrument: models.Instrument,
-    balance: models.Balance,
+    admin_balance: models.Balance,
 ):
-    initial_amount = balance.amount
+    initial_amount = admin_balance.amount
 
     withdraw_amount = initial_amount + 100
     withdraw_data = {
