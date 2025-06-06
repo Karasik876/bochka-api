@@ -198,14 +198,23 @@ class Orders(
         )
 
     async def _find_best_order(
-        self, uow: core.UnitOfWork, instrument_id: UUID, order_direction: models.OrderDirection
+        self,
+        uow: core.UnitOfWork,
+        instrument_id: UUID,
+        order_direction: models.OrderDirection,
+        price: int | None = None,
     ) -> schemas.orders.Read | None:
+        price_from = price if order_direction == models.OrderDirection.BUY else None
+        price_to = price if order_direction == models.OrderDirection.SELL else None
+
         orders = await self.read_many(
             uow,
             schemas.orders.Filters(
                 direction=order_direction,
                 instrument_id=instrument_id,
                 status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
+                price_from=price_from,
+                price_to=price_to,
             ),
             schemas.orders.SortParams(
                 sort_by=schemas.orders.SortFields.PRICE,
@@ -287,7 +296,7 @@ class Orders(
         filled = order.filled
         while filled < order.qty:
             sell_order = await self._find_best_order(
-                uow, order.instrument.id, models.OrderDirection.SELL
+                uow, order.instrument.id, models.OrderDirection.SELL, order.price
             )
             if not sell_order:
                 break
@@ -303,7 +312,7 @@ class Orders(
         filled = order.filled
         while filled < order.qty:
             buy_order = await self._find_best_order(
-                uow, order.instrument.id, models.OrderDirection.BUY
+                uow, order.instrument.id, models.OrderDirection.BUY, order.price
             )
             if not buy_order:
                 break
@@ -327,6 +336,44 @@ class Orders(
         await self.order_handlers[order.order_type, order.direction](uow, order)
 
         return order
+
+    async def get_order_book(
+        self, uow: core.UnitOfWork, ticker: str, limit: int
+    ) -> schemas.orders.OrderBook:
+        instrument = await self.instruments_service.read_by_ticker(uow, ticker)
+
+        buy_orders = await self.read_many(
+            uow,
+            schemas.orders.Filters(
+                instrument_id=instrument.id,
+                direction=models.OrderDirection.BUY,
+                status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
+            ),
+            schemas.orders.SortParams(sort_by=schemas.orders.SortFields.PRICE, ascending=True),
+            core.schemas.PaginationParams(limit=limit),
+        )
+
+        sell_orders = await self.read_many(
+            uow,
+            schemas.orders.Filters(
+                instrument_id=instrument.id,
+                direction=models.OrderDirection.SELL,
+                status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
+            ),
+            schemas.orders.SortParams(sort_by=schemas.orders.SortFields.PRICE, ascending=False),
+            core.schemas.PaginationParams(limit=limit),
+        )
+
+        return schemas.orders.OrderBook(
+            bid_levels=[
+                schemas.orders.OrderBookLevel(price=order.price, qty=order.qty)
+                for order in buy_orders
+            ],
+            ask_levels=[
+                schemas.orders.OrderBookLevel(price=order.price, qty=order.qty)
+                for order in sell_orders
+            ],
+        )
 
     async def cancel_order(self, uow: core.UnitOfWork, order_id: UUID):
         order = await self.read_by_id(uow, order_id)
