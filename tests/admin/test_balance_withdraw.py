@@ -3,7 +3,6 @@ from collections.abc import Callable
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_v7.base import uuid7
 
