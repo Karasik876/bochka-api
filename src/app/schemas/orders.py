@@ -31,13 +31,12 @@ class Create(Base):
     price: LimitOrderPrice | None = None
 
 
-class LimitOrderBody(Base):
-    ticker: instrument_schemas.Ticker
-    price: LimitOrderPrice
-
-
 class MarketOrderBody(Base):
     ticker: instrument_schemas.Ticker
+
+
+class LimitOrderBody(MarketOrderBody):
+    price: LimitOrderPrice
 
 
 class Read(Base):
