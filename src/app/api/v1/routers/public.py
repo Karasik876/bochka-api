@@ -45,13 +45,13 @@ async def get_orderbook(
     instrument = await instruments_service.read_by_ticker(uow, ticker)
 
     order_book = await utils.get_order_book_manager().get_order_book(
-        uow, instrument.id, refresh=True
+        uow, instrument.id, pagination, refresh=True
     )
 
     def extract_levels(heap: utils.orderbook.OrderHeap, *, is_bid: bool) -> list[dict[str, int]]:
         price_map = defaultdict(int)
 
-        for order in heap[: pagination.limit]:
+        for order in heap:
             assert order.price is not None
             price = -order.price if is_bid else order.price
             qty_remaining = order.qty - (order.filled or 0)

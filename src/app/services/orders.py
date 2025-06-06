@@ -5,7 +5,6 @@ from uuid import UUID
 
 from src import core
 from src.app import models, repositories, schemas, services, utils
-from src.core.schemas import PaginationParams
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -32,17 +31,33 @@ class Orders(
         )
 
     async def find_active_limit_orders(
-        self, uow: UnitOfWork, instrument_id: UUID
+        self,
+        uow: UnitOfWork,
+        instrument_id: UUID,
+        pagination: core.schemas.PaginationParams | None = None,
     ) -> list[schemas.orders.Read]:
-        return await self.read_many(
+        buy_orders = await self.read_many(
             uow,
             filters=schemas.orders.Filters(
                 instrument_id=instrument_id,
                 order_type=models.order.OrderType.LIMIT,
                 status=[models.order.OrderStatus.NEW, models.order.OrderStatus.PARTIALLY_EXECUTED],
+                direction=models.order.Direction.BUY,
             ),
-            pagination=PaginationParams(limit=0),
+            pagination=pagination,
         )
+        sell_orders = await self.read_many(
+            uow,
+            filters=schemas.orders.Filters(
+                instrument_id=instrument_id,
+                order_type=models.order.OrderType.LIMIT,
+                status=[models.order.OrderStatus.NEW, models.order.OrderStatus.PARTIALLY_EXECUTED],
+                direction=models.order.Direction.SELL,
+            ),
+            pagination=pagination,
+        )
+        buy_orders.extend(sell_orders)
+        return buy_orders
 
     async def create(
         self,
@@ -51,8 +66,6 @@ class Orders(
         *,
         additional_data: dict[str, Any] | None = None,
     ) -> schemas.orders.Read:
-        order_manager = utils.get_order_book_manager()
-
         user_id = create_schema.user_id
         instrument_id = create_schema.instrument_id
         direction = create_schema.direction
@@ -129,14 +142,13 @@ class Orders(
         order = await super().create(uow, create_schema, additional_data=additional_data)
 
         print(f"Weaver created ORDER: {order}")
+        order_book_manager = utils.get_order_book_manager()
 
         if order_type == models.order.OrderType.MARKET:
             await self._execute_market_order(
                 uow=uow,
-                order_manager=order_manager,
+                order_book_manager=order_book_manager,
                 instrument_id=instrument_id,
-                direction=direction,
-                qty=qty,
                 order=order,
             )
 
@@ -145,17 +157,15 @@ class Orders(
     @staticmethod
     async def _execute_market_order(
         uow: UnitOfWork,
-        order_manager: utils.OrderBookManager,
+        order_book_manager: utils.OrderBookManager,
         instrument_id: UUID,
-        direction: models.order.Direction,
-        qty: int,
         order: schemas.orders.Read,
     ) -> None:
-        order_book = await order_manager.get_order_book(uow, instrument_id)
+        order_book = await order_book_manager.get_order_book(uow, instrument_id)
 
-        remaining_qty = qty
+        remaining_qty = order.qty
         while remaining_qty > 0:
-            if direction == models.order.Direction.BUY:
+            if order.direction == models.order.Direction.BUY:
                 best_ask_order = order_book.asks[0] if order_book.asks else None
                 if not best_ask_order:
                     break
@@ -184,5 +194,5 @@ class Orders(
                 remaining_qty -= trade_qty
 
         if remaining_qty != 0:
-            order_manager.clear_order_book(instrument_id)
-            raise services.exceptions.OrderRejectedError(order.id, qty, remaining_qty)
+            order_book_manager.clear_order_book(instrument_id)
+            raise services.exceptions.OrderRejectedError(order.id, order.qty, remaining_qty)

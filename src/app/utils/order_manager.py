@@ -17,11 +17,16 @@ class OrderBookManager:
         self._order_books: dict[UUID, OrderBook] = {}
 
     async def get_order_book(
-        self, uow: UnitOfWork, instrument_id: UUID, *, refresh: bool = False
+        self,
+        uow: UnitOfWork,
+        instrument_id: UUID,
+        pagination: core.schemas.PaginationParams | None = None,
+        *,
+        refresh: bool = False,
     ) -> OrderBook:
         if instrument_id not in self._order_books or refresh:
             order_book = OrderBook(instrument_id)
-            await order_book.load_from_db(uow)
+            await order_book.load_from_db(uow, pagination)
             self._order_books[instrument_id] = order_book
         print(f"weaver getting order book {self._order_books[instrument_id]}")
         pprint(f"bids in orderbook: {self._order_books[instrument_id].bids}")

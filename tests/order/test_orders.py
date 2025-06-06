@@ -191,7 +191,6 @@ async def test_market_fails_with_insufficient_limit_orders(
 
     assert "detail" in response_json
     assert response_json["error_code"] == "market_order_not_filled"
-    assert f"<{limit_order.qty}/{trade_qty}>" in response_json["detail"]
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 

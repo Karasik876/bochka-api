@@ -4,6 +4,7 @@ import heapq
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from src import core
 from src.app import models, schemas
 
 if TYPE_CHECKING:
@@ -18,11 +19,14 @@ class OrderBook:
         self.bids: OrderHeap = []
         self.asks: OrderHeap = []
 
-    async def load_from_db(self, uow: UnitOfWork):
-        active_orders = await uow.order_service.find_active_limit_orders(uow, self.instrument_id)
+    async def load_from_db(
+        self, uow: UnitOfWork, pagination: core.schemas.PaginationParams | None = None
+    ):
+        active_orders = await uow.order_service.find_active_limit_orders(
+            uow, self.instrument_id, pagination
+        )
 
-        buy_orders = []
-        sell_orders = []
+        buy_orders, sell_orders = [], []
 
         # O(n)
         for order in active_orders:
