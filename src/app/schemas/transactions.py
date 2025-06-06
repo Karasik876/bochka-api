@@ -29,7 +29,7 @@ class Update(BaseModel):
 
 
 class Read(Base):
-    id: UUID
+    qty: Annotated[int, Field(gt=0, serialization_alias="amount")]
     created_at: Annotated[datetime, Field(serialization_alias="timestamp")]
 
     instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
@@ -39,7 +39,7 @@ class Read(Base):
     def ticker(self) -> instrument_schemas.Ticker:
         return self.instrument.ticker
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
 
 
 class CreateResponse(BaseModel):
@@ -47,7 +47,7 @@ class CreateResponse(BaseModel):
 
 
 class Filters(core.schemas.BaseFilters):
-    pass
+    instrument_id: UUID | None = None
 
 
 class SortFields(enum.StrEnum):

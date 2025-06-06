@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
+from src import core
 from src.app import schemas
 from src.app.api import dependencies
-from src.core.schemas import PaginationParams
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -21,7 +21,7 @@ async def get_instruments(
     service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return await service.read_many(uow, pagination=PaginationParams(limit=1000))
+    return await service.read_many(uow, pagination=core.schemas.PaginationParams(limit=1000))
 
 
 @router.get("/instrument/tickers")
@@ -39,6 +39,20 @@ async def get_orderbook(
     return await service.get_order_book(uow, ticker, limit)
 
 
-@router.get("/transactions/{ticker}")
-async def get_transactions(ticker: str):
-    raise NotImplementedError
+@router.get("/transactions/{ticker}", response_model=list[schemas.transactions.Read])
+async def get_transactions(
+    ticker: str,
+    limit: int,
+    uow: dependencies.uow.Postgres,
+    instruments_service: dependencies.services.Instruments,
+    transactions_service: dependencies.services.Transactions,
+):
+    instrument = await instruments_service.read_by_ticker(uow, ticker)
+    return await transactions_service.read_many(
+        uow,
+        schemas.transactions.Filters(instrument_id=instrument.id),
+        schemas.transactions.SortParams(
+            sort_by=schemas.transactions.SortFields.CREATED_AT, ascending=False
+        ),
+        core.schemas.PaginationParams(limit=limit),
+    )
