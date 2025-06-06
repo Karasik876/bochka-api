@@ -195,7 +195,7 @@ def create_order(db_session: AsyncSession, rub_instrument: models.Instrument) ->
         status: models.order.OrderStatus,
         direction: models.order.Direction,
         qty: schemas.orders.OrderQuantity,
-        price: schemas.orders.LimitOrderPrice,
+        price: schemas.orders.LimitOrderPrice | None = None,
     ) -> models.Order:
         params = dict(locals())
 

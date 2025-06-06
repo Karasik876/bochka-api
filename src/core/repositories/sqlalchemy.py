@@ -79,6 +79,14 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             raise repositories.exceptions.EntityCreateError(
                 self.__class__.__name__, self.model.__tablename__, err_info
             ) from e
+        except OperationalError as e:
+            if is_serialization_failure(e):
+                uow.postgres_session.expunge_all()
+                raise
+            raise repositories.exceptions.DatabaseError(
+                self.__class__.__name__,
+                str(e),
+            ) from e
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -87,6 +95,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
         return instances
 
+    @retry_on_serialization()
     @log_operation
     async def read_by_id(
         self, uow: UnitOfWork, entity_id: custom_types.EntityID, *, include_deleted: bool = False
@@ -107,6 +116,14 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 query = query.where(self.model.deleted_at.is_(None))
 
             return await session.scalar(query)
+        except OperationalError as e:
+            if is_serialization_failure(e):
+                uow.postgres_session.expunge_all()
+                raise
+            raise repositories.exceptions.DatabaseError(
+                self.__class__.__name__,
+                str(e),
+            ) from e
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -152,6 +169,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                     query = query.where(column == value)
         return query
 
+    @retry_on_serialization()
     @log_operation
     async def read_many(
         self,
@@ -188,6 +206,14 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
             result = await session.scalars(query)
             return result.all()
+        except OperationalError as e:
+            if is_serialization_failure(e):
+                uow.postgres_session.expunge_all()
+                raise
+            raise repositories.exceptions.DatabaseError(
+                self.__class__.__name__,
+                str(e),
+            ) from e
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -242,7 +268,14 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             await session.delete(instance)
             await session.flush()
             return True
-
+        except OperationalError as e:
+            if is_serialization_failure(e):
+                uow.postgres_session.expunge_all()
+                raise
+            raise repositories.exceptions.DatabaseError(
+                self.__class__.__name__,
+                str(e),
+            ) from e
         except Exception as e:
             raise repositories.exceptions.EntityDeleteError(
                 self.__class__.__name__,
