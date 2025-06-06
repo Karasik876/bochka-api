@@ -33,10 +33,12 @@ async def create_instrument(
 )
 async def delete_instrument(
     ticker: schemas.instruments.Ticker,
-    service: dependencies.services.Instruments,
+    instruments_service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return schemas.instruments.Delete(success=await service.delete_by_ticker(uow, ticker))
+    return schemas.instruments.Delete(
+        success=await instruments_service.delete_by_ticker(uow, ticker)
+    )
 
 
 @router.delete(

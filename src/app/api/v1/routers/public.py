@@ -18,28 +18,30 @@ async def register(
 
 @router.get("/instrument", response_model=list[schemas.instruments.Read])
 async def get_instruments(
-    service: dependencies.services.Instruments,
+    instruments_service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return await service.read_many(uow, pagination=core.schemas.PaginationParams(limit=1000))
+    return await instruments_service.read_many(
+        uow, pagination=core.schemas.PaginationParams(limit=1000)
+    )
 
 
 @router.get("/instrument/tickers")
 async def get_instruments_tickers(
-    service: dependencies.services.Instruments,
+    instruments_service: dependencies.services.Instruments,
     uow: dependencies.uow.Postgres,
 ):
-    return await service.get_all_instruments(uow)
+    return await instruments_service.get_all_instruments(uow)
 
 
 @router.get("/orderbook/{ticker}", response_model=schemas.orders.OrderBook)
 async def get_orderbook(
     uow: dependencies.uow.Postgres,
-    service: dependencies.services.Orders,
+    instruments_service: dependencies.services.Orders,
     ticker: str,
     limit: int = 10,
 ):
-    return await service.get_order_book(uow, ticker, limit)
+    return await instruments_service.get_order_book(uow, ticker, limit)
 
 
 @router.get("/transactions/{ticker}", response_model=list[schemas.transactions.Read])
