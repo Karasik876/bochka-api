@@ -60,7 +60,7 @@ class Read(Base):
     model_config = ConfigDict(from_attributes=True, serialize_by_alias=True)
 
 
-class ReadResponse(Base):
+class MarketOrder(Base):
     id: UUID
     status: models.order.OrderStatus
     user_id: UUID
@@ -69,22 +69,30 @@ class ReadResponse(Base):
     instrument: Annotated[instrument_schemas.Read, Field(exclude=True)]
     direction: Annotated[models.order.Direction, Field(exclude=True)]
     qty: Annotated[OrderQuantity, Field(exclude=True)]
-    price: Annotated[LimitOrderPrice | None, Field(exclude=True)]
 
     @computed_field
     @property
-    def body(self) -> LimitOrderBody | MarketOrderBody:
-        return (
-            LimitOrderBody(
-                direction=self.direction,
-                ticker=self.instrument.ticker,
-                qty=self.qty,
-                price=self.price,
-            )
-            if self.price
-            else MarketOrderBody(
-                direction=self.direction, ticker=self.instrument.ticker, qty=self.qty
-            )
+    def body(self) -> MarketOrderBody:
+        return MarketOrderBody(
+            direction=self.direction, ticker=self.instrument.ticker, qty=self.qty
+        )
+
+    model_config = ConfigDict(
+        from_attributes=True, serialize_by_alias=True, validate_by_alias=True
+    )
+
+
+class LimitOrder(MarketOrder):
+    price: Annotated[LimitOrderPrice, Field(exclude=True)]
+
+    @computed_field
+    @property
+    def body(self) -> LimitOrderBody:
+        return LimitOrderBody(
+            direction=self.direction,
+            ticker=self.instrument.ticker,
+            qty=self.qty,
+            price=self.price,
         )
 
     filled: int
