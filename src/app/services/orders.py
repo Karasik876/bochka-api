@@ -331,7 +331,7 @@ class Orders(
     async def cancel_order(self, uow: core.UnitOfWork, order_id: UUID):
         order = await self.read_by_id(uow, order_id)
 
-        await self._return_locked_amount(uow, order)
+        await self._return_locked_amount(uow, order.id)
 
         await self.update_by_id(
             uow, order_id, schemas.orders.Update(status=models.order.OrderStatus.CANCELLED)
