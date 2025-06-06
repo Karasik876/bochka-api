@@ -37,6 +37,12 @@ class Read(Base):
     model_config = ConfigDict(from_attributes=True)
 
 
+class Operation(BaseModel):
+    user_id: UUID
+    amount: Annotated[int, Field(gt=0)]
+    ticker: instrument_schemas.Ticker
+
+
 class Filters(core.schemas.BaseFilters):
     user_id: list[UUID] | UUID | None = None
     ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None
