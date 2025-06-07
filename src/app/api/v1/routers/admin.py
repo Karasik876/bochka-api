@@ -76,8 +76,8 @@ async def deposit(
     instrument = await instrument_service.read_by_ticker(uow, balance_operation.ticker)
 
     try:
-        balance = await balance_service.read_by_composite_id(
-            uow, user_id=balance_operation.user_id, instrument_id=instrument.id
+        balance = await balance_service.read_by_id(
+            uow, {"user_id": balance_operation.user_id, "instrument_id": instrument.id}
         )
 
         await balance_service.update_by_id(
@@ -125,8 +125,8 @@ async def withdraw(
     instrument = await instrument_service.read_by_ticker(uow, balance_operation.ticker)
 
     try:
-        balance = await balance_service.read_by_composite_id(
-            uow, user_id=balance_operation.user_id, instrument_id=instrument.id
+        balance = await balance_service.read_by_id(
+            uow, {"user_id": balance_operation.user_id, "instrument_id": instrument.id}
         )
 
         if balance.amount < balance_operation.amount:

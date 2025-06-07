@@ -44,7 +44,7 @@ async def get_or_create_user_balance(
     ticker: schemas.instruments.Ticker,
     instruments_service: dependencies.services.Instruments,
     balances_service: dependencies.services.Balances,
-    user_id: UUID | None = None,
+    user_id: UUID,
 ):
     instrument = await instruments_service.read_by_ticker(uow, ticker)
 

@@ -33,7 +33,7 @@ class Balances(
 
     async def read_by_composite_id(
         self, uow: UnitOfWork, user_id: UUID, instrument_id: UUID, *, include_deleted: bool = False
-    ) -> schemas.instruments.Read:
+    ) -> schemas.balance.Read:
         balances = await self.read_many(
             uow,
             filters=schemas.instruments.Filters(user_id=user_id, instrument_id=instrument_id),
