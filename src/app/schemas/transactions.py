@@ -13,6 +13,10 @@ TransactionAmount = Annotated[int, Field(gt=0)]
 TransactionPrice = Annotated[int, Field(ge=0)]
 
 
+class TransactionsPaginationParams(core.schemas.PaginationParams):
+    limit: Annotated[int, Field(ge=1, le=100)] = 10
+
+
 class Base(BaseModel):
     amount: TransactionAmount
     price: TransactionPrice

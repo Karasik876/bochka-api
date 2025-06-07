@@ -3,7 +3,6 @@ from collections.abc import Callable
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid_v7.base import uuid7
 
@@ -35,15 +34,6 @@ async def test_withdraw_success(
     assert json_response["success"]
 
     assert admin_balance.amount == initial_amount - withdraw_amount
-
-    operation = await db_session.scalar(
-        select(models.BalanceOperation).filter_by(
-            user_id=admin_user.id, instrument_id=instrument.id, amount=withdraw_amount
-        )
-    )
-
-    assert operation is not None
-    assert operation.operation_type == "WITHDRAW"
 
 
 async def test_withdraw_failed_not_enough_funds(

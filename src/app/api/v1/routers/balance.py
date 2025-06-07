@@ -48,8 +48,8 @@ async def get_or_create_user_balance(
 ):
     instrument = await instruments_service.read_by_ticker(uow, ticker)
 
-    user_balance = await balances_service.get_or_create_user_balance(
-        uow, user_id=user_id, instrument_id=instrument.id
+    return await balances_service.get_or_create_user_balance(
+        uow,
+        user_id=user_id,
+        instrument_id=instrument.id,
     )
-
-    return user_balance

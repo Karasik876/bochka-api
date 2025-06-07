@@ -42,11 +42,11 @@ class BaseFilters(BaseModel):
                     try:
                         if to_value < from_value:
                             raise ValueError(
-                                f"'{to_field}' must be greater than or equal to '{field_name}'"
+                                f"'{to_field}' must be greater than or equal to '{field_name}'",
                             )
                     except TypeError:
                         raise ValueError(
-                            f"Types of '{field_name}' and '{to_field}' do not support comparison"
+                            f"Types of '{field_name}' and '{to_field}' do not support comparison",
                         ) from None
         return self
 

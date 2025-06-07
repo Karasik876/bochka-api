@@ -17,7 +17,7 @@ class Users(
         schemas.users.Filters,
         schemas.users.SortParams,
         models.User,
-    ]
+    ],
 ):
     def __init__(self):
         self.repo = repositories.Users()
@@ -34,13 +34,16 @@ class Users(
 
         if not user:
             raise core.services.exceptions.EntityNotFoundError(
-                self.__class__.__name__, f"name={name}"
+                self.__class__.__name__,
+                f"name={name}",
             )
 
         return await self._validate_data(user)
 
     async def get_or_create_user(
-        self, uow: UnitOfWork, user_data: schemas.users.Create
+        self,
+        uow: UnitOfWork,
+        user_data: schemas.users.Create,
     ) -> schemas.users.Read:
         try:
             return await self.read_by_name(uow, user_data.name)

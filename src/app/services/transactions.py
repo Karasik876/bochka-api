@@ -10,7 +10,7 @@ class Transactions(
         schemas.transactions.Filters,
         schemas.transactions.SortParams,
         models.Transaction,
-    ]
+    ],
 ):
     def __init__(self):
         self.repo = repositories.Transactions()

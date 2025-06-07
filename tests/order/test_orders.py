@@ -13,7 +13,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 async def get_orders(
-    session: AsyncSession, order_type: models.order.OrderType, direction: models.order.Direction
+    session: AsyncSession,
+    order_type: models.order.OrderType,
+    direction: models.order.Direction,
 ) -> list[models.Order]:
     return list(
         (
@@ -21,9 +23,9 @@ async def get_orders(
                 select(models.Order).filter_by(
                     order_type=order_type,
                     direction=direction,
-                )
+                ),
             )
-        ).all()
+        ).all(),
     )
 
 
@@ -254,13 +256,17 @@ async def test_market_buy_executes_two_limit_sells(
 
     assert (
         len(
-            await get_orders(db_session, models.order.OrderType.MARKET, models.order.Direction.BUY)
+            await get_orders(
+                db_session, models.order.OrderType.MARKET, models.order.Direction.BUY
+            ),
         )
         == 1
     )
 
     limit_sell_orders_db = await get_orders(
-        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+        db_session,
+        models.order.OrderType.LIMIT,
+        models.order.Direction.SELL,
     )
     assert len(limit_sell_orders_db) == 2  # noqa: PLR2004
 
@@ -286,7 +292,7 @@ async def test_market_buy_executes_two_limit_sells(
     assert all_balances.admin_balance.amount == start_admin_balance - trade_qty
 
 
-async def test_limit_buy_executes_limit_sells(
+async def test_limit_buy_executes_limit_sells(  # noqa: PLR0914
     db_session: AsyncSession,
     user_client: AsyncClient,
     admin_user: models.User,
@@ -351,22 +357,26 @@ async def test_limit_buy_executes_limit_sells(
         len(
             (
                 await db_session.scalars(
-                    select(models.Order).filter_by(order_type=models.order.OrderType.MARKET)
+                    select(models.Order).filter_by(order_type=models.order.OrderType.MARKET),
                 )
-            ).all()
+            ).all(),
         )
         == 0
     )
 
     limit_sell_orders_db = await get_orders(
-        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+        db_session,
+        models.order.OrderType.LIMIT,
+        models.order.Direction.SELL,
     )
     assert len(limit_sell_orders_db) == 4  # noqa: PLR2004
 
     assert all(order.status == models.order.OrderStatus.EXECUTED for order in limit_sell_orders_db)
 
     limit_buy_orders_db = await get_orders(
-        db_session, models.order.OrderType.LIMIT, models.order.Direction.BUY
+        db_session,
+        models.order.OrderType.LIMIT,
+        models.order.Direction.BUY,
     )
 
     assert len(limit_buy_orders_db) == 1
@@ -385,7 +395,7 @@ async def test_limit_buy_executes_limit_sells(
     assert all_balances.admin_balance.amount == start_admin_balance - total_qty
 
 
-async def test_limit_sell_executes_limit_buys(
+async def test_limit_sell_executes_limit_buys(  # noqa: PLR0914
     db_session: AsyncSession,
     user_client: AsyncClient,
     admin_user: models.User,
@@ -450,22 +460,26 @@ async def test_limit_sell_executes_limit_buys(
         len(
             (
                 await db_session.scalars(
-                    select(models.Order).filter_by(order_type=models.order.OrderType.MARKET)
+                    select(models.Order).filter_by(order_type=models.order.OrderType.MARKET),
                 )
-            ).all()
+            ).all(),
         )
         == 0
     )
 
     limit_buy_orders_db = await get_orders(
-        db_session, models.order.OrderType.LIMIT, models.order.Direction.BUY
+        db_session,
+        models.order.OrderType.LIMIT,
+        models.order.Direction.BUY,
     )
     assert len(limit_buy_orders_db) == 4  # noqa: PLR2004
 
     assert all(order.status == models.order.OrderStatus.EXECUTED for order in limit_buy_orders_db)
 
     limit_sell_orders_db = await get_orders(
-        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+        db_session,
+        models.order.OrderType.LIMIT,
+        models.order.Direction.SELL,
     )
 
     assert len(limit_sell_orders_db) == 1
@@ -489,5 +503,5 @@ async def test_limit_sell_executes_limit_buys(
 
     transactions = (await user_client.get(f"/public/transactions/{instrument.ticker}")).json()
 
-    assert len(transactions) == 4
+    assert len(transactions) == 4  # noqa: PLR2004
     assert all("amount" in t for t in transactions)

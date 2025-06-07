@@ -38,7 +38,11 @@ class Instruments(
         ]
 
     async def read_by_ticker(
-        self, uow: UnitOfWork, ticker: str, *, include_deleted: bool = False
+        self,
+        uow: UnitOfWork,
+        ticker: str,
+        *,
+        include_deleted: bool = False,
     ) -> schemas.instruments.Read:
         instrument = await self.read_many(
             uow,

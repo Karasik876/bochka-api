@@ -74,7 +74,6 @@ async def test_delete_instrument_failed_404(
 
 
 async def test_delete_instrument_failed_403(
-    db_session: AsyncSession,
     user_client: AsyncClient,
 ):
     ticker = "FAKE"

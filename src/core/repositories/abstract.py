@@ -21,7 +21,11 @@ class BaseCRUD[ModelType](ABC):
 
     @abstractmethod
     async def read_by_id(
-        self, uow: UnitOfWork, entity_id: Any, *, include_deleted: bool = False
+        self,
+        uow: UnitOfWork,
+        entity_id: Any,
+        *,
+        include_deleted: bool = False,
     ) -> ModelType | None:
         raise NotImplementedError
 

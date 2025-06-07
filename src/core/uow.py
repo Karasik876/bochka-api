@@ -1,10 +1,9 @@
-from functools import cached_property
+import asyncio
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-from src.app import services
 from src.core import db
 
 
@@ -30,6 +29,7 @@ class UnitOfWork:
                 if exc_type is not None:
                     await self._postgres_session.rollback()
                 else:
+                    await asyncio.sleep(0.2)  # test
                     await self._postgres_session.commit()
         finally:
             if self._postgres_session:
@@ -39,23 +39,3 @@ class UnitOfWork:
     def postgres_session(self) -> AsyncSession:
         assert self._postgres_session is not None
         return self._postgres_session
-
-    @cached_property
-    def balance_service(self) -> services.Balances:
-        return services.Balances()
-
-    @cached_property
-    def order_service(self) -> services.Orders:
-        return services.Orders()
-
-    @cached_property
-    def instrument_service(self) -> services.Instruments:
-        return services.Instruments()
-
-    @cached_property
-    def transaction_service(self) -> services.Transactions:
-        return services.Transactions()
-
-    @cached_property
-    def user_service(self) -> services.Users:
-        return services.Users()

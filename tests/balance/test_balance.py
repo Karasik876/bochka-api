@@ -7,7 +7,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 async def test_one_balance(
-    admin_client: AsyncClient, instrument: models.Instrument, admin_balance: models.Balance
+    admin_client: AsyncClient,
+    instrument: models.Instrument,
+    admin_balance: models.Balance,
 ):
     response = await admin_client.get("/balance")
 

@@ -16,5 +16,5 @@ class OrderRejectedError(ServiceError):
     def __init__(self, order_id: UUID, qty: int, remaining_qty: int):
         fill_qty = qty - remaining_qty
         super().__init__(
-            f"Market order <{order_id}> not filled, could be filled up to: <{fill_qty}/{qty}>"
+            f"Market order <{order_id}> not filled, could be filled up to: <{fill_qty}/{qty}>",
         )

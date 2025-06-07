@@ -8,7 +8,8 @@ from src.app import services
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(services.exceptions.InsufficientBalanceError)
     def handle_not_enough_funds(
-        request: Request, exc: services.exceptions.InsufficientBalanceError
+        request: Request,
+        exc: services.exceptions.InsufficientBalanceError,
     ) -> ORJSONResponse:
         return core.error_handlers.make_error_response(
             str(exc),
@@ -19,7 +20,8 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(services.exceptions.OrderRejectedError)
     def handle_market_order_reject(
-        request: Request, exc: services.exceptions.OrderRejectedError
+        request: Request,
+        exc: services.exceptions.OrderRejectedError,
     ) -> ORJSONResponse:
         return core.error_handlers.make_error_response(
             str(exc),

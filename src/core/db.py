@@ -28,7 +28,10 @@ class PostgresManager:
 
     def _create_session_factory(self) -> async_sessionmaker[AsyncSession]:
         return async_sessionmaker(
-            bind=self.engine, class_=AsyncSession, expire_on_commit=False, autobegin=False
+            bind=self.engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autobegin=False,
         )
 
     async def get_session(self) -> AsyncSession:

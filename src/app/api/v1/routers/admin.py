@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from src import core
-from src.app import models, schemas, services
+from src.app import schemas, services
 from src.app.api import dependencies
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -22,7 +22,7 @@ async def create_instrument(
     uow: dependencies.uow.Postgres,
 ):
     return schemas.instruments.CreateResponse(
-        success=bool(await instruments_service.create(uow, instrument))
+        success=bool(await instruments_service.create(uow, instrument)),
     )
 
 
@@ -62,13 +62,12 @@ async def delete_user(
 @router.post(
     "/balance/deposit",
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
-    response_model=schemas.balance_operations.OperationSuccess,
+    response_model=schemas.balance.OperationSuccess,
 )
 async def deposit(
     uow: dependencies.uow.Postgres,
-    balance_operation: schemas.balance_operations.CreateRequest,
+    balance_operation: schemas.balance.CreateRequest,
     balance_service: dependencies.services.Balances,
-    balance_operation_service: dependencies.services.BalanceOperations,
     user_service: dependencies.services.Users,
     instrument_service: dependencies.services.Instruments,
 ):
@@ -77,7 +76,8 @@ async def deposit(
 
     try:
         balance = await balance_service.read_by_id(
-            uow, {"user_id": balance_operation.user_id, "instrument_id": instrument.id}
+            uow,
+            {"user_id": balance_operation.user_id, "instrument_id": instrument.id},
         )
 
         await balance_service.update_by_id(
@@ -95,29 +95,18 @@ async def deposit(
             ),
         )
 
-    await balance_operation_service.create(
-        uow,
-        schemas.balance_operations.Create(
-            user_id=balance_operation.user_id,
-            amount=balance_operation.amount,
-            instrument_id=instrument.id,
-            operation_type=models.balance_operation.OperationType.DEPOSIT,
-        ),
-    )
-
-    return schemas.balance_operations.OperationSuccess(success=True)
+    return schemas.balance.OperationSuccess(success=True)
 
 
 @router.post(
     "/balance/withdraw",
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
-    response_model=schemas.balance_operations.OperationSuccess,
+    response_model=schemas.balance.OperationSuccess,
 )
 async def withdraw(
     uow: dependencies.uow.Postgres,
-    balance_operation: schemas.balance_operations.CreateRequest,
+    balance_operation: schemas.balance.CreateRequest,
     balance_service: dependencies.services.Balances,
-    operation_service: dependencies.services.BalanceOperations,
     user_service: dependencies.services.Users,
     instrument_service: dependencies.services.Instruments,
 ):
@@ -126,12 +115,14 @@ async def withdraw(
 
     try:
         balance = await balance_service.read_by_id(
-            uow, {"user_id": balance_operation.user_id, "instrument_id": instrument.id}
+            uow,
+            {"user_id": balance_operation.user_id, "instrument_id": instrument.id},
         )
 
         if balance.amount < balance_operation.amount:
             raise services.exceptions.InsufficientBalanceError(
-                balance_operation.user_id, instrument.ticker
+                balance_operation.user_id,
+                instrument.ticker,
             )
 
         await balance_service.update_by_id(
@@ -141,17 +132,8 @@ async def withdraw(
         )
     except core.services.exceptions.EntityNotFoundError:
         raise services.exceptions.InsufficientBalanceError(
-            balance_operation.user_id, instrument.ticker
+            balance_operation.user_id,
+            instrument.ticker,
         ) from None
 
-    await operation_service.create(
-        uow,
-        schemas.balance_operations.Create(
-            user_id=balance_operation.user_id,
-            amount=balance_operation.amount,
-            instrument_id=instrument.id,
-            operation_type=models.balance_operation.OperationType.WITHDRAW,
-        ),
-    )
-
-    return schemas.balance_operations.OperationSuccess(success=True)
+    return schemas.balance.OperationSuccess(success=True)

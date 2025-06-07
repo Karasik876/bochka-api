@@ -24,5 +24,7 @@ class Transaction(core.models.sqlalchemy.Base):
     price: Mapped[int]
 
     instrument: Mapped["Instrument"] = relationship(
-        "Instrument", back_populates="transactions", lazy="selectin"
+        "Instrument",
+        back_populates="transactions",
+        lazy="selectin",
     )

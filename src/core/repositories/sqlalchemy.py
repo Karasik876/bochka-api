@@ -10,7 +10,6 @@ from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories, schemas
 from src.core.utils.decorators import log_operation, retry_on_serialization
-from src.core.utils.decorators.retry import is_serialization_failure
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -40,19 +39,18 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
         except IntegrityError as e:
             if "duplicate" in (err_info := str(e)):
                 raise repositories.exceptions.DuplicateError(
-                    self.__class__.__name__, self.model.__tablename__, err_info
+                    self.__class__.__name__,
+                    self.model.__tablename__,
+                    err_info,
                 ) from e
             raise repositories.exceptions.EntityCreateError(
-                self.__class__.__name__, self.model.__tablename__, err_info
-            ) from e
-        except OperationalError as e:
-            if is_serialization_failure(e):
-                uow.postgres_session.expunge_all()
-                raise
-            raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
-                str(e),
+                self.model.__tablename__,
+                err_info,
             ) from e
+        except OperationalError:
+            uow.postgres_session.expunge_all()
+            raise
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -74,19 +72,18 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
         except IntegrityError as e:
             if "duplicate" in (err_info := str(e)):
                 raise repositories.exceptions.DuplicateError(
-                    self.__class__.__name__, self.model.__tablename__, err_info
+                    self.__class__.__name__,
+                    self.model.__tablename__,
+                    err_info,
                 ) from e
             raise repositories.exceptions.EntityCreateError(
-                self.__class__.__name__, self.model.__tablename__, err_info
-            ) from e
-        except OperationalError as e:
-            if is_serialization_failure(e):
-                uow.postgres_session.expunge_all()
-                raise
-            raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
-                str(e),
+                self.model.__tablename__,
+                err_info,
             ) from e
+        except OperationalError:
+            uow.postgres_session.expunge_all()
+            raise
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -98,7 +95,11 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
     @retry_on_serialization()
     @log_operation
     async def read_by_id(
-        self, uow: UnitOfWork, entity_id: custom_types.EntityID, *, include_deleted: bool = False
+        self,
+        uow: UnitOfWork,
+        entity_id: custom_types.EntityID,
+        *,
+        include_deleted: bool = False,
     ) -> SQLModelType | None:
         try:
             session = uow.postgres_session
@@ -116,14 +117,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 query = query.where(self.model.deleted_at.is_(None))
 
             return await session.scalar(query)
-        except OperationalError as e:
-            if is_serialization_failure(e):
-                uow.postgres_session.expunge_all()
-                raise
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
+        except OperationalError:
+            uow.postgres_session.expunge_all()
+            raise
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -145,7 +141,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             elif field == "search":
                 if not self.search_fields:
                     self.logger.error(
-                        "Search query given but no search fields defined for the model"
+                        "Search query given but no search fields defined for the model",
                     )
                     continue
 
@@ -198,7 +194,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 query = query.order_by(
                     column.desc()
                     if order_by == schemas.SortOrderField.DESCENDING
-                    else column.asc()
+                    else column.asc(),
                 )
 
             if limit != float("inf"):
@@ -206,14 +202,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
             result = await session.scalars(query)
             return result.all()
-        except OperationalError as e:
-            if is_serialization_failure(e):
-                uow.postgres_session.expunge_all()
-                raise
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
+        except OperationalError:
+            uow.postgres_session.expunge_all()
+            raise
         except Exception as e:
             raise repositories.exceptions.DatabaseError(
                 self.__class__.__name__,
@@ -268,14 +259,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             await session.delete(instance)
             await session.flush()
             return True
-        except OperationalError as e:
-            if is_serialization_failure(e):
-                uow.postgres_session.expunge_all()
-                raise
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
+        except OperationalError:
+            uow.postgres_session.expunge_all()
+            raise
         except Exception as e:
             raise repositories.exceptions.EntityDeleteError(
                 self.__class__.__name__,

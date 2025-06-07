@@ -67,8 +67,7 @@ async def client(mock_uow: None) -> AsyncGenerator[AsyncClient]:
         base_url="http://test/api/v1",
     ) as client:
         yield client
-    print(app.dependency_overrides)
-    print("dazzle ENDING CLIENT")
+
     app.dependency_overrides = {}
 
 
@@ -87,7 +86,8 @@ async def user(db_session: AsyncSession) -> models.User:
 @pytest.fixture(scope="function")
 async def admin_user(db_session: AsyncSession) -> models.User:
     return await create_in_db(
-        db_session, models.User(name="Admin User", role=models.UserRole.ADMIN)
+        db_session,
+        models.User(name="Admin User", role=models.UserRole.ADMIN),
     )
 
 
@@ -103,16 +103,21 @@ async def rub_instrument(db_session: AsyncSession) -> models.Instrument:
 
 @pytest.fixture(scope="function")
 async def admin_balance(
-    db_session: AsyncSession, admin_user: models.User, instrument: models.Instrument
+    db_session: AsyncSession,
+    admin_user: models.User,
+    instrument: models.Instrument,
 ) -> models.Balance:
     return await create_in_db(
-        db_session, models.Balance(user_id=admin_user.id, instrument_id=instrument.id, amount=1000)
+        db_session,
+        models.Balance(user_id=admin_user.id, instrument_id=instrument.id, amount=1000),
     )
 
 
 @pytest.fixture(scope="function")
 async def admin_rub_balance(
-    db_session: AsyncSession, admin_user: models.User, rub_instrument: models.Instrument
+    db_session: AsyncSession,
+    admin_user: models.User,
+    rub_instrument: models.Instrument,
 ) -> models.Balance:
     return await create_in_db(
         db_session,
@@ -122,16 +127,21 @@ async def admin_rub_balance(
 
 @pytest.fixture(scope="function")
 async def user_balance(
-    db_session: AsyncSession, user: models.User, instrument: models.Instrument
+    db_session: AsyncSession,
+    user: models.User,
+    instrument: models.Instrument,
 ) -> models.Balance:
     return await create_in_db(
-        db_session, models.Balance(user_id=user.id, instrument_id=instrument.id, amount=1000)
+        db_session,
+        models.Balance(user_id=user.id, instrument_id=instrument.id, amount=1000),
     )
 
 
 @pytest.fixture(scope="function")
 async def user_rub_balance(
-    db_session: AsyncSession, user: models.User, rub_instrument: models.Instrument
+    db_session: AsyncSession,
+    user: models.User,
+    rub_instrument: models.Instrument,
 ) -> models.Balance:
     return await create_in_db(
         db_session,
@@ -173,7 +183,6 @@ def user_client(client: AsyncClient, user: models.User) -> AsyncClient:
     app.dependency_overrides[dependencies.permissions.get_current_user] = (
         lambda: schemas.users.Read.model_validate(user)
     )
-    print("dazzle USER client FIXTURE STARTED")
     return client
 
 
@@ -182,7 +191,6 @@ def admin_client(client: AsyncClient, admin_user: models.User) -> AsyncClient:
     app.dependency_overrides[dependencies.permissions.get_current_user] = (
         lambda: schemas.users.Read.model_validate(admin_user)
     )
-    print("dazzle ADMIN client FIXTURE STARTED")
     return client
 
 

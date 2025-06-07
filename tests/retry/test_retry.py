@@ -50,7 +50,8 @@ async def test_create_retries_on_serialization_error(mock_uow: None, db_session:
             patch.object(uow.postgres_session, "refresh", refresh_mock),
         ):
             result = await instruments_repo.create(
-                uow, {"ticker": "TESTTEST", "name": "Test Instrument"}
+                uow,
+                {"ticker": "TESTTEST", "name": "Test Instrument"},
             )
 
     results = (await db_session.scalars(select(models.Instrument))).all()
@@ -70,9 +71,11 @@ async def test_isolation_level_serializable(db_session: AsyncSession):
 
 @pytest.mark.slow
 async def test_endpoint_retries_on_serialization_error(
-    admin_client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ):
-    retries_number = 3
+    retries_number = 4
 
     flush_count = 0
     original_flush = db_session.flush
@@ -89,7 +92,8 @@ async def test_endpoint_retries_on_serialization_error(
     monkeypatch.setattr(db_session, "flush", mocked_flush)
 
     response = await admin_client.post(
-        "/admin/instrument", json={"ticker": "RETRY", "name": "Retry Test"}
+        "/admin/instrument",
+        json={"ticker": "RETRY", "name": "Retry Test"},
     )
 
     assert "detail" not in response.json()

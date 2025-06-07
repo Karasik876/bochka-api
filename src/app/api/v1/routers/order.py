@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 from src import core
 from src.app import models, schemas
 from src.app.api import dependencies
+from src.app.utils import get_order_book_manager
 
 router = APIRouter(prefix="/order", tags=["order"])
 
@@ -50,7 +51,8 @@ async def get_my_orders(
     uow: dependencies.uow.Postgres,
 ):
     return await order_service.read_many(
-        uow, filters=schemas.orders.Filters(user_id=current_user.id)
+        uow,
+        filters=schemas.orders.Filters(user_id=current_user.id),
     )
 
 
@@ -60,7 +62,9 @@ async def get_my_orders(
     response_model=schemas.orders.Read,
 )
 async def get_order(
-    order_id: UUID, order_service: dependencies.services.Orders, uow: dependencies.uow.Postgres
+    order_id: UUID,
+    order_service: dependencies.services.Orders,
+    uow: dependencies.uow.Postgres,
 ):
     return await order_service.read_by_id(uow, order_id)
 
@@ -79,8 +83,13 @@ async def cancel_order(
     order = await orders_service.read_by_id(uow, order_id)
     if order.user_id != current_user.id:
         raise core.services.exceptions.PermissionDeniedError(
-            message="You dont have permission to cancel this order", service_name="Orders"
+            message="You dont have permission to cancel this order",
+            service_name="Orders",
         )
+
+    get_order_book_manager().clear_order_book(
+        order.instrument_id,
+    )  # можно просто удалить (нужен новый метод)
 
     await orders_service.refund_locked_amount(uow, order)
 

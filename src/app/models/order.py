@@ -52,7 +52,7 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
             Direction,
             name="orderdirection",
             values_callable=lambda enum_class: [member.value for member in enum_class],
-        )
+        ),
     )
 
     instrument_id: Mapped[Uuid] = mapped_column(Uuid, ForeignKey("instruments.id"))
@@ -65,7 +65,7 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
             OrderType,
             name="ordertype",
             values_callable=lambda enum_class: [member.value for member in enum_class],
-        )
+        ),
     )
 
     locked_money_amount: Mapped[int | None] = mapped_column(default=None)
@@ -75,7 +75,9 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
 
     user: Mapped["User"] = relationship("User", back_populates="orders")
     instrument: Mapped["Instrument"] = relationship(
-        "Instrument", back_populates="orders", lazy="selectin"
+        "Instrument",
+        back_populates="orders",
+        lazy="selectin",
     )
 
     __table_args__ = (

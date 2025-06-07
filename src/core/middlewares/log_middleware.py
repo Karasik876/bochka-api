@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):  # noqa: PLR6301
+    async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         client_host = request.client.host if request.client else "unknown"
         method = request.method

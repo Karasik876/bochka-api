@@ -22,6 +22,10 @@ OrderQuantity = Annotated[int, Field(ge=1)]
 OrderFilled = Annotated[int | None, Field(ge=0)]
 
 
+class OrderBookPaginationParams(core.schemas.PaginationParams):
+    limit: Annotated[int, Field(ge=1, le=25)] = 10
+
+
 class Base(BaseModel):
     direction: models.order.Direction
     ticker: instrument_schemas.Ticker
@@ -77,7 +81,9 @@ class Read(BaseModel):
             )
             if self.price
             else MarketOrderBody(
-                direction=self.direction, ticker=self.instrument.ticker, qty=self.qty
+                direction=self.direction,
+                ticker=self.instrument.ticker,
+                qty=self.qty,
             )
         )
 

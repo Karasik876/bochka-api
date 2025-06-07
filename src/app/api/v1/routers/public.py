@@ -40,12 +40,15 @@ async def get_orderbook(
     uow: dependencies.uow.Postgres,
     instruments_service: dependencies.services.Instruments,
     ticker: schemas.instruments.Ticker,
-    pagination: Annotated[PaginationParams, Query()],
+    pagination: Annotated[schemas.orders.OrderBookPaginationParams, Query()],
 ):
     instrument = await instruments_service.read_by_ticker(uow, ticker)
 
     order_book = await utils.get_order_book_manager().get_order_book(
-        uow, instrument.id, pagination, refresh=True
+        uow,
+        instrument.id,
+        pagination,
+        refresh=True,
     )
 
     def extract_levels(heap: utils.orderbook.OrderHeap, *, is_bid: bool) -> list[dict[str, int]]:
@@ -77,7 +80,7 @@ async def get_transactions(
     transactions_service: dependencies.services.Transactions,
     instruments_service: dependencies.services.Instruments,
     ticker: schemas.instruments.Ticker,
-    pagination: Annotated[PaginationParams, Query()],
+    pagination: Annotated[schemas.transactions.TransactionsPaginationParams, Query()],
 ):
     instrument = await instruments_service.read_by_ticker(uow, ticker)
 
@@ -85,7 +88,7 @@ async def get_transactions(
         uow,
         filters=schemas.transactions.Filters(instrument_id=instrument.id),
         sorting=schemas.transactions.SortParams(
-            sort_by=schemas.transactions.SortFields.CREATED_AT
+            sort_by=schemas.transactions.SortFields.CREATED_AT,
         ),
         pagination=pagination,
     )

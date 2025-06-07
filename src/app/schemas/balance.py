@@ -10,6 +10,18 @@ from . import instruments as instrument_schemas
 
 BalanceAmount = Annotated[int, Field(ge=0)]
 
+BalanceOperationAmount = Annotated[int, Field(gt=0)]
+
+
+class CreateRequest(BaseModel):
+    user_id: UUID
+    amount: BalanceOperationAmount
+    ticker: instrument_schemas.Ticker
+
+
+class OperationSuccess(BaseModel):
+    success: bool = True
+
 
 class Base(BaseModel):
     user_id: UUID
@@ -56,5 +68,5 @@ class Response(RootModel[dict[instrument_schemas.Ticker, BalanceAmount]]):
     root: dict[instrument_schemas.Ticker, BalanceAmount]
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"MEMCOIN": 0, "DODGE": 100500, "BITCOIN": 42}}
+        json_schema_extra={"example": {"MEMCOIN": 0, "DODGE": 100500, "BITCOIN": 42}},
     )

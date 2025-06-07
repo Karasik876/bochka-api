@@ -5,6 +5,7 @@ from uuid import UUID
 
 from src import core
 from src.app import models, repositories, schemas, services, utils
+from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -18,7 +19,7 @@ class Orders(
         schemas.orders.Filters,
         schemas.orders.SortParams,
         models.Order,
-    ]
+    ],
 ):
     def __init__(self):
         self.repo = repositories.Orders()
@@ -44,6 +45,10 @@ class Orders(
                 status=[models.order.OrderStatus.NEW, models.order.OrderStatus.PARTIALLY_EXECUTED],
                 direction=models.order.Direction.BUY,
             ),
+            sorting=schemas.orders.SortParams(
+                sort_by=schemas.orders.SortFields.PRICE,
+                order_by=core.schemas.SortOrderField.DESCENDING,
+            ),
             pagination=pagination,
         )
         sell_orders = await self.read_many(
@@ -54,11 +59,16 @@ class Orders(
                 status=[models.order.OrderStatus.NEW, models.order.OrderStatus.PARTIALLY_EXECUTED],
                 direction=models.order.Direction.SELL,
             ),
+            sorting=schemas.orders.SortParams(
+                sort_by=schemas.orders.SortFields.PRICE,
+                order_by=core.schemas.SortOrderField.ASCENDING,
+            ),
             pagination=pagination,
         )
         buy_orders.extend(sell_orders)
         return buy_orders
 
+    @retry_on_serialization()
     async def create(
         self,
         uow: UnitOfWork,
@@ -66,40 +76,50 @@ class Orders(
         *,
         additional_data: dict[str, Any] | None = None,
     ) -> schemas.orders.Read:
-        rub_instrument = await uow.instrument_service.read_by_ticker(uow, "RUB")
+        self.instrument_service = services.Instruments()
+        self.balance_service = services.Balances()
 
-        rub_balance = await uow.balance_service.get_or_create_user_balance(
-            uow, create_schema.user_id, rub_instrument.id
+        rub_instrument = await self.instrument_service.read_by_ticker(uow, "RUB")
+
+        rub_balance = await self.balance_service.get_or_create_user_balance(
+            uow,
+            create_schema.user_id,
+            rub_instrument.id,
         )
-        instrument_balance = await uow.balance_service.get_or_create_user_balance(
-            uow, create_schema.user_id, create_schema.instrument_id
+        instrument_balance = await self.balance_service.get_or_create_user_balance(
+            uow,
+            create_schema.user_id,
+            create_schema.instrument_id,
         )
 
         additional_data = await self._get_locked_amounts(
-            uow, create_schema, rub_balance, instrument_balance
+            uow,
+            create_schema,
+            rub_balance,
+            instrument_balance,
         )
-
-        print(f"Weaver additional data: {additional_data}")
 
         order = await super().create(uow, create_schema, additional_data=additional_data)
 
-        print(f"Weaver created ORDER: {order}")
         order_book_manager = utils.get_order_book_manager()
 
         if create_schema.order_type == models.order.OrderType.LIMIT:
-            order_book = await order_book_manager.get_order_book(uow, create_schema.instrument_id)
+            order_book = await order_book_manager.get_order_book(
+                uow,
+                create_schema.instrument_id,
+                core.schemas.PaginationParams(limit=100),
+                refresh=True,
+            )
 
-            if create_schema.direction == models.order.Direction.BUY:
+            if create_schema.direction == models.order.Direction.BUY:  # BUY LIMIT order
                 best_ask_order = order_book.asks[0] if order_book.asks else None
-                print(f"!!! best_ask_order {best_ask_order}")
+
                 if best_ask_order and order.price >= best_ask_order.price:
-                    print("!!!! goes to execute ask")
                     await self._execute_aggressive_limit_order(uow, order_book, order)
-            else:  # SELL
+            else:  # SELL LIMIT order
                 best_bid_order = order_book.bids[0] if order_book.bids else None
-                print(f"!!! best_bid_order {best_bid_order}")
+
                 if best_bid_order and order.price <= best_bid_order.price:
-                    print("!!! goes to execute")
                     await self._execute_aggressive_limit_order(uow, order_book, order)
 
         if create_schema.order_type == models.order.OrderType.MARKET:
@@ -132,24 +152,29 @@ class Orders(
 
                 if available_money < required_money:
                     raise services.exceptions.InsufficientBalanceError(
-                        create_schema.user_id, "RUB"
+                        create_schema.user_id,
+                        "RUB",
                     )
 
                 locked_money_amount, locked_instrument_amount = required_money, None
 
             else:  # LIMIT SELL
                 locked_instrument = await self.repo.sum_locked_instrument(
-                    uow, create_schema.user_id, instrument_balance.instrument_id
+                    uow,
+                    create_schema.user_id,
+                    instrument_balance.instrument_id,
                 )
 
                 available_instrument = instrument_balance.amount - locked_instrument
 
                 if available_instrument < create_schema.qty:
-                    instrument = await uow.instrument_service.read_by_id(
-                        uow, instrument_balance.instrument_id
+                    instrument = await self.instrument_service.read_by_id(
+                        uow,
+                        instrument_balance.instrument_id,
                     )
                     raise services.exceptions.InsufficientBalanceError(
-                        create_schema.user_id, instrument.ticker
+                        create_schema.user_id,
+                        instrument.ticker,
                     )
 
                 locked_money_amount, locked_instrument_amount = None, create_schema.qty
@@ -163,14 +188,20 @@ class Orders(
             locked_instrument_amount=locked_instrument_amount,
         )
 
-    @staticmethod
+    @retry_on_serialization()
     async def _execute_market_order(
+        self,
         uow: UnitOfWork,
         order_book_manager: utils.OrderBookManager,
         instrument_id: UUID,
         order: schemas.orders.Read,
     ) -> None:
-        order_book = await order_book_manager.get_order_book(uow, instrument_id)
+        order_book = await order_book_manager.get_order_book(
+            uow,
+            instrument_id,
+            core.schemas.PaginationParams(limit=100),
+            refresh=True,
+        )
 
         remaining_qty = order.qty
         while remaining_qty > 0:
@@ -186,7 +217,10 @@ class Orders(
                 trade_qty = min(remaining_qty, available_qty)
 
                 await order_book.execute_trade(
-                    uow, buy_order=order, sell_order=best_ask_order, quantity=trade_qty
+                    uow,
+                    buy_order=order,
+                    sell_order=best_ask_order,
+                    quantity=trade_qty,
                 )
 
                 remaining_qty -= trade_qty
@@ -203,7 +237,10 @@ class Orders(
                 trade_qty = min(remaining_qty, available_qty)
 
                 await order_book.execute_trade(
-                    uow, buy_order=best_bid_order, sell_order=order, quantity=trade_qty
+                    uow,
+                    buy_order=best_bid_order,
+                    sell_order=order,
+                    quantity=trade_qty,
                 )
 
                 remaining_qty -= trade_qty
@@ -212,8 +249,9 @@ class Orders(
             order_book_manager.clear_order_book(instrument_id)
             raise services.exceptions.OrderRejectedError(order.id, order.qty, remaining_qty)
 
-    @staticmethod
+    @retry_on_serialization()
     async def _execute_aggressive_limit_order(
+        self,
         uow: UnitOfWork,
         order_book: utils.orderbook.OrderBook,
         order: schemas.orders.Read,
@@ -221,13 +259,11 @@ class Orders(
         remaining_qty = order.qty - (order.filled or 0)
 
         assert order.price is not None
-        print(f"!!! remaining_qty start {remaining_qty}")
-        print(f"!!! locked_price {order.price}")
+
         current_order = order
         while remaining_qty > 0:
             if order.direction == models.order.Direction.BUY:
                 best_ask_order = order_book.asks[0] if order_book.asks else None
-                print(f"!!! EXECUTE best_ask_order {best_ask_order} ")
 
                 if (
                     not best_ask_order
@@ -237,11 +273,7 @@ class Orders(
                 ):
                     break
 
-                print(f"!!! available_qty {available_qty}")
                 trade_qty = min(remaining_qty, available_qty)
-                print(f"!!! trade_qty {trade_qty}")
-                execution_price = best_ask_order.price
-                print(f"!!! execution_price {execution_price}")
 
                 updated_orders = await order_book.execute_trade(
                     uow,
@@ -252,7 +284,6 @@ class Orders(
                 current_order = updated_orders[0]
 
                 remaining_qty -= trade_qty
-                print(f"!!! remaining_qty AFTER {remaining_qty} ")
 
             else:  # LIMIT SELL
                 best_bid_order = order_book.bids[0] if order_book.bids else None
@@ -283,14 +314,16 @@ class Orders(
         order: schemas.orders.Read,
     ) -> None:
         if order.locked_money_amount and order.locked_money_amount > 0:
-            rub_instrument = await uow.instrument_service.read_by_ticker(uow, "RUB")
+            rub_instrument = await self.instrument_service.read_by_ticker(uow, "RUB")
 
-            balance = await uow.balance_service.get_or_create_user_balance(
-                uow, order.user_id, rub_instrument.id
+            balance = await self.balance_service.get_or_create_user_balance(
+                uow,
+                order.user_id,
+                rub_instrument.id,
             )
             new_amount = balance.amount + order.locked_money_amount
 
-            await uow.balance_service.update_by_id(
+            await self.balance_service.update_by_id(
                 uow,
                 {"user_id": order.user_id, "instrument_id": rub_instrument.id},
                 schemas.balance.Update(amount=new_amount),
@@ -303,12 +336,14 @@ class Orders(
             )
 
         if order.locked_instrument_amount and order.locked_instrument_amount > 0:
-            balance = await uow.balance_service.get_or_create_user_balance(
-                uow, order.user_id, order.instrument.id
+            balance = await self.balance_service.get_or_create_user_balance(
+                uow,
+                order.user_id,
+                order.instrument.id,
             )
             new_amount = balance.amount + order.locked_instrument_amount
 
-            await uow.balance_service.update_by_id(
+            await self.balance_service.update_by_id(
                 uow,
                 {"user_id": order.user_id, "instrument_id": order.instrument.id},
                 schemas.balance.Update(amount=new_amount),
