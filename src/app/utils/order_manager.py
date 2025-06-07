@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pprint import pprint
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -28,14 +27,10 @@ class OrderBookManager:
             order_book = OrderBook(instrument_id)
             await order_book.load_from_db(uow, pagination)
             self._order_books[instrument_id] = order_book
-        print(f"weaver getting order book {self._order_books[instrument_id]}")
-        pprint(f"bids in orderbook: {self._order_books[instrument_id].bids}")
-        pprint(f"asks in orderbook: {self._order_books[instrument_id].asks}")
         return self._order_books[instrument_id]
 
-    def clear_order_book(self, instrument_id: UUID):
+    def clear_order_book(self, instrument_id: UUID) -> None:
         self._order_books.pop(instrument_id, None)
-        print(f"weaver cleared order books {self._order_books}")
 
 
 def get_order_book_manager() -> OrderBookManager:

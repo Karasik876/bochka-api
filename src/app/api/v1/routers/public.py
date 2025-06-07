@@ -75,9 +75,17 @@ async def get_orderbook(
 async def get_transactions(
     uow: dependencies.uow.Postgres,
     transactions_service: dependencies.services.Transactions,
+    instruments_service: dependencies.services.Instruments,
     ticker: schemas.instruments.Ticker,
     pagination: Annotated[PaginationParams, Query()],
 ):
-    return transactions_service.read_many(
-        uow, filters=schemas.transactions.Filters(ticker=ticker), pagination=pagination
+    instrument = await instruments_service.read_by_ticker(uow, ticker)
+
+    return await transactions_service.read_many(
+        uow,
+        filters=schemas.transactions.Filters(instrument_id=instrument.id),
+        sorting=schemas.transactions.SortParams(
+            sort_by=schemas.transactions.SortFields.CREATED_AT
+        ),
+        pagination=pagination,
     )

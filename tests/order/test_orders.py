@@ -486,3 +486,8 @@ async def test_limit_sell_executes_limit_buys(
     assert all_balances.admin_rub_balance.amount == start_admin_rub_balance - transferred_money
     assert all_balances.user_balance.amount == start_user_balance - total_qty
     assert all_balances.admin_balance.amount == start_admin_balance + total_qty
+
+    transactions = (await user_client.get(f"/public/transactions/{instrument.ticker}")).json()
+
+    assert len(transactions) == 4
+    assert all("amount" in t for t in transactions)

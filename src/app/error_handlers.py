@@ -27,3 +27,12 @@ def register_error_handlers(app: FastAPI) -> None:
             "market_order_not_filled",
             status.HTTP_400_BAD_REQUEST,
         )
+
+    @app.exception_handler(ValueError)
+    def handle_value_error(request: Request, exc: ValueError) -> ORJSONResponse:
+        return core.error_handlers.make_error_response(
+            str(exc),
+            "Bad Request: ValueError",
+            "value_error",
+            status.HTTP_400_BAD_REQUEST,
+        )

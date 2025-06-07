@@ -71,7 +71,6 @@ class Orders(
         rub_balance = await uow.balance_service.get_or_create_user_balance(
             uow, create_schema.user_id, rub_instrument.id
         )
-
         instrument_balance = await uow.balance_service.get_or_create_user_balance(
             uow, create_schema.user_id, create_schema.instrument_id
         )
@@ -119,7 +118,7 @@ class Orders(
         create_schema: schemas.orders.Create,
         rub_balance: schemas.balance.Read,
         instrument_balance: schemas.balance.Read,
-    ) -> dict[str, Any]:
+    ) -> dict[str, int | None]:
         if create_schema.order_type == models.order.OrderType.LIMIT:
             filled = 0
             if create_schema.direction == models.order.Direction.BUY:
@@ -180,13 +179,15 @@ class Orders(
 
                 if (
                     not best_ask_order
-                    or (available_qty := (best_ask_order.qty - best_ask_order.filled)) == 0
+                    or (available_qty := (best_ask_order.qty - best_ask_order.filled)) <= 0
                 ):
                     break
 
                 trade_qty = min(remaining_qty, available_qty)
 
-                await order_book.execute_trade(uow, order, best_ask_order, trade_qty)
+                await order_book.execute_trade(
+                    uow, buy_order=order, sell_order=best_ask_order, quantity=trade_qty
+                )
 
                 remaining_qty -= trade_qty
 
@@ -195,13 +196,15 @@ class Orders(
 
                 if (
                     not best_bid_order
-                    or (available_qty := (best_bid_order.qty - best_bid_order.filled)) == 0
+                    or (available_qty := (best_bid_order.qty - best_bid_order.filled)) <= 0
                 ):
                     break
 
                 trade_qty = min(remaining_qty, available_qty)
 
-                await order_book.execute_trade(uow, best_bid_order, order, trade_qty)
+                await order_book.execute_trade(
+                    uow, buy_order=best_bid_order, sell_order=order, quantity=trade_qty
+                )
 
                 remaining_qty -= trade_qty
 
@@ -218,8 +221,7 @@ class Orders(
         remaining_qty = order.qty - (order.filled or 0)
 
         assert order.price is not None
-        total_spent = 0
-        print(f"!!! remaining_qty {remaining_qty}")
+        print(f"!!! remaining_qty start {remaining_qty}")
         print(f"!!! locked_price {order.price}")
         current_order = order
         while remaining_qty > 0:
@@ -231,7 +233,7 @@ class Orders(
                     not best_ask_order
                     or best_ask_order.price is None
                     or best_ask_order.price > order.price
-                    or (available_qty := (best_ask_order.qty - (best_ask_order.filled or 0))) == 0
+                    or (available_qty := (best_ask_order.qty - (best_ask_order.filled or 0))) <= 0
                 ):
                     break
 
@@ -249,9 +251,7 @@ class Orders(
                 )
                 current_order = updated_orders[0]
 
-                total_spent += execution_price * trade_qty
                 remaining_qty -= trade_qty
-                print(f"!!! total_spent {total_spent}")
                 print(f"!!! remaining_qty AFTER {remaining_qty} ")
 
             else:  # LIMIT SELL

@@ -43,7 +43,7 @@ class OrderBook:
         self.asks = sell_orders
 
     @staticmethod
-    def _update_best_order(heap: OrderHeap, updated_order: schemas.orders.Read):
+    def _update_heap_best_order(heap: OrderHeap, updated_order: schemas.orders.Read):
         print("!!! going to update")
         # O(1)
         if heap and (best_order := heap[0]).id == updated_order.id:
@@ -56,7 +56,7 @@ class OrderBook:
                 best_order.locked_instrument_amount = updated_order.locked_instrument_amount
 
     @staticmethod
-    def _remove_best_order(heap: OrderHeap, order_id: UUID):
+    def _remove_heap_best_order(heap: OrderHeap, order_id: UUID):
         # O(log(n))
         if heap and heap[0].id == order_id:
             heapq.heappop(heap)
@@ -88,15 +88,6 @@ class OrderBook:
         # maker price
         execution_price = self.get_execution_price(buy_order, sell_order)
 
-        await uow.transaction_service.create(
-            uow,
-            schemas.transactions.Create(
-                instrument_id=self.instrument_id,
-                amount=quantity,
-                price=execution_price,
-            ),
-        )
-
         rub_instrument = await uow.instrument_service.read_by_ticker(uow, "RUB")
 
         await uow.balance_service.transfer(
@@ -113,6 +104,14 @@ class OrderBook:
             instrument_id=self.instrument_id,
             amount=quantity,
         )
+        await uow.transaction_service.create(
+            uow,
+            schemas.transactions.Create(
+                instrument_id=self.instrument_id,
+                amount=quantity,
+                price=execution_price,
+            ),
+        )
 
         print(f"WEAVER buy order {buy_order}")
         print(f"WEAVER sell order {sell_order}")
@@ -120,8 +119,7 @@ class OrderBook:
         print(f"WEAVER quantity {quantity}")
         print(f"WEAVER execution_price {execution_price}")
 
-        updated_buy_order = None
-        updated_sell_order = None
+        updated_buy_order, updated_sell_order = None, None
         for order in [buy_order, sell_order]:
             print(f"!!! going for order in {order}")
             if order.order_type == models.order.OrderType.LIMIT:
@@ -134,7 +132,7 @@ class OrderBook:
                 )
                 print(f"!!! updated_status {updated_status}")
                 print(f"!!! order direction {order.direction}")
-                if order.direction == models.order.Direction.BUY:  # limit buy order
+                if order.direction == models.order.Direction.BUY:  # LIMIT BUY order
                     updated_locked_money_amount = (order.locked_money_amount or 0) - quantity * (
                         order.price or 0
                     )
@@ -152,10 +150,10 @@ class OrderBook:
                     )
                     print(f"!!! updated_buy_order {updated_buy_order}")
                     if updated_buy_order.status == models.order.OrderStatus.EXECUTED:
-                        self._remove_best_order(self.bids, updated_buy_order.id)
+                        self._remove_heap_best_order(self.bids, updated_buy_order.id)
                     else:
-                        self._update_best_order(self.bids, updated_buy_order)
-                else:  # limit sell order
+                        self._update_heap_best_order(self.bids, updated_buy_order)
+                else:  # LIMIT SELL order
                     updated_locked_instrument_amount = (
                         order.locked_instrument_amount or 0
                     ) - quantity
@@ -173,8 +171,8 @@ class OrderBook:
                     )
                     print(f"!!! updated_sell_order {updated_sell_order}")
                     if updated_sell_order.status == models.order.OrderStatus.EXECUTED:
-                        self._remove_best_order(self.asks, updated_sell_order.id)
+                        self._remove_heap_best_order(self.asks, updated_sell_order.id)
                     else:
-                        self._update_best_order(self.asks, updated_sell_order)
+                        self._update_heap_best_order(self.asks, updated_sell_order)
 
         return (updated_buy_order, updated_sell_order)
