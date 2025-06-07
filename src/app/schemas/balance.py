@@ -26,6 +26,7 @@ class Update(BaseModel):
 
 
 class Read(Base):
+    id: Annotated[UUID, Field(exclude=True)]
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter
 
 from src.app import schemas
@@ -31,3 +33,23 @@ async def get_balance(
         instrument.ticker: user_balances_dict.get(instrument.id, 0)
         for instrument in all_instruments
     }
+
+
+@router.get(
+    "/{ticker}",
+    response_model=schemas.balance.Read,
+)
+async def get_or_create_user_balance(
+    uow: dependencies.uow.Postgres,
+    ticker: schemas.instruments.Ticker,
+    instruments_service: dependencies.services.Instruments,
+    balances_service: dependencies.services.Balances,
+    user_id: UUID | None = None,
+):
+    instrument = await instruments_service.read_by_ticker(uow, ticker)
+
+    user_balance = await balances_service.get_or_create_user_balance(
+        uow, user_id=user_id, instrument_id=instrument.id
+    )
+
+    return user_balance

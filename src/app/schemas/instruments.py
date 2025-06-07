@@ -44,6 +44,8 @@ class CreateResponse(BaseModel):
 
 class Filters(core.schemas.BaseFilters):
     ticker: list[Ticker] | Ticker | None = None
+    user_id: list[UUID] | UUID | None = None
+    instrument_id: list[UUID] | UUID | None = None
 
 
 class SortFields(enum.StrEnum):
