@@ -55,7 +55,7 @@ async def get_orderbook(
         price_map = defaultdict(int)
 
         for order in heap:
-            if order.price is None or order.price <= 0:
+            if order.price is None or order.price < 0:
                 continue
             qty_remaining = order.qty - (order.filled or 0)
             if qty_remaining > 0:
