@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src import core
 from src.app import models
@@ -32,7 +32,7 @@ class Orders(core.repositories.sqlalchemy.BaseCRUD[models.Order]):
             )
             locked_money = await uow.postgres_session.scalar(query)
             return locked_money or 0
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
 
@@ -55,6 +55,6 @@ class Orders(core.repositories.sqlalchemy.BaseCRUD[models.Order]):
             locked_instrument = await uow.postgres_session.scalar(query)
 
             return locked_instrument or 0
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise

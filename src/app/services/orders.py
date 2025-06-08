@@ -5,7 +5,6 @@ from uuid import UUID
 
 from src import core
 from src.app import models, repositories, schemas, services, utils
-from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -68,7 +67,6 @@ class Orders(
         buy_orders.extend(sell_orders)
         return buy_orders
 
-    @retry_on_serialization()
     async def create(
         self,
         uow: UnitOfWork,
@@ -188,7 +186,6 @@ class Orders(
             locked_instrument_amount=locked_instrument_amount,
         )
 
-    @retry_on_serialization()
     async def _execute_market_order(
         self,
         uow: UnitOfWork,
@@ -249,7 +246,6 @@ class Orders(
             order_book_manager.clear_order_book(instrument_id)
             raise services.exceptions.OrderRejectedError(order.id, order.qty, remaining_qty)
 
-    @retry_on_serialization()
     async def _execute_aggressive_limit_order(
         self,
         uow: UnitOfWork,

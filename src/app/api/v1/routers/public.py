@@ -55,11 +55,11 @@ async def get_orderbook(
         price_map = defaultdict(int)
 
         for order in heap:
-            assert order.price is not None
-            price = -order.price if is_bid else order.price
+            if order.price is None or order.price <= 0:
+                continue
             qty_remaining = order.qty - (order.filled or 0)
             if qty_remaining > 0:
-                price_map[price] += qty_remaining
+                price_map[order.price] += qty_remaining
 
         sorted_prices = sorted(price_map.items(), key=lambda x: x[0], reverse=is_bid)
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src import core
 from src.app import models
@@ -40,11 +40,6 @@ class Users(core.repositories.sqlalchemy.BaseCRUD[models.User]):
                     extra={"user_name": name, "exists": False},
                 )
             return user
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
-        except Exception as e:
-            raise core.repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e

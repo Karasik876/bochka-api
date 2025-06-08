@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from sqlalchemy import Select, and_, func, inspect, or_, select, update
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories, schemas
@@ -36,6 +36,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             session.add(instance)
             await session.flush()
             await session.refresh(instance)
+
         except IntegrityError as e:
             if "duplicate" in (err_info := str(e)):
                 raise repositories.exceptions.DuplicateError(
@@ -48,15 +49,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 self.model.__tablename__,
                 err_info,
             ) from e
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
-        except Exception as e:
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
-
         return instance
 
     @retry_on_serialization()
@@ -81,14 +76,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 self.model.__tablename__,
                 err_info,
             ) from e
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
-        except Exception as e:
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
 
         return instances
 
@@ -117,14 +107,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 query = query.where(self.model.deleted_at.is_(None))
 
             return await session.scalar(query)
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
-        except Exception as e:
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
 
     def _process_filters(self, query: Select, filters: dict[str, Any]) -> Select:
         for field, value in filters.items():
@@ -202,14 +187,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
             result = await session.scalars(query)
             return result.all()
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
-        except Exception as e:
-            raise repositories.exceptions.DatabaseError(
-                self.__class__.__name__,
-                str(e),
-            ) from e
 
     @retry_on_serialization()
     @log_operation
@@ -230,13 +210,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             else:
                 self.logger.warning("Update target not found", extra={"updated": False})
             return instance
-        except Exception as e:
-            raise repositories.exceptions.EntityUpdateError(
-                self.__class__.__name__,
-                self.model.__tablename__,
-                f"entity_id: {entity_id}",
-                str(e),
-            ) from e
+        except SQLAlchemyError:
+            uow.postgres_session.expunge_all()
+            raise
 
     @retry_on_serialization()
     @log_operation
@@ -259,16 +235,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             await session.delete(instance)
             await session.flush()
             return True
-        except OperationalError:
+        except SQLAlchemyError:
             uow.postgres_session.expunge_all()
             raise
-        except Exception as e:
-            raise repositories.exceptions.EntityDeleteError(
-                self.__class__.__name__,
-                self.model.__tablename__,
-                f"entity_id: {entity_id}",
-                str(e),
-            ) from e
 
     async def _soft_delete_cascades(self, uow: UnitOfWork, instance: SQLModelType) -> None:
         """Cascading soft deletes. Examples are with Organizations and Quizzes."""

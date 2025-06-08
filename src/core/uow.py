@@ -1,5 +1,3 @@
-import asyncio
-
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
@@ -29,7 +27,6 @@ class UnitOfWork:
                 if exc_type is not None:
                     await self._postgres_session.rollback()
                 else:
-                    await asyncio.sleep(0.2)  # test
                     await self._postgres_session.commit()
         finally:
             if self._postgres_session:
