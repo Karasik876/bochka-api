@@ -247,7 +247,11 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
         for relation_name in self.model.__soft_delete_cascades__:  # type: ignore[attr-defined]
             # Organization.quizzes
-            relation = getattr(self.model, relation_name)
+            relation = getattr(self.model, relation_name, None)
+
+            if relation is None:
+                self.logger.warning(f"{self.model} does not have attribute <{relation_name}>")  # noqa: G004
+                continue
 
             # <class 'src.app.models.quiz.Quiz'>
             target_cls = relation.mapper.class_
