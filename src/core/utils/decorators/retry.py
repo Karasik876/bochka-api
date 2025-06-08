@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from tenacity import (
     retry,
@@ -13,13 +15,17 @@ def is_serialization_failure(exception: BaseException) -> bool:
 
 
 def is_unexpected_error(exception: BaseException) -> bool:
-    return isinstance(exception, SQLAlchemyError)
+    if isinstance(exception, SQLAlchemyError):
+        logger = logging.getLogger("retry")
+        logger.error("Retry error", extra={"original_error": str(exception)})
+        return True
+    return False
 
 
 def retry_on_serialization():
     return retry(
         reraise=False,
         stop=stop_after_attempt(5),
-        wait=wait_fixed(0.5) + wait_random(0.2, 1),
+        wait=wait_fixed(0.1) + wait_random(0.3, 1),
         retry=retry_if_exception(is_unexpected_error),
     )

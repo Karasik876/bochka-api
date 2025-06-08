@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from sqlalchemy import Select, and_, func, inspect, or_, select, update
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError
 from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories, schemas
@@ -239,6 +239,8 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             uow.postgres_session.expunge_all()
             raise
 
+    @retry_on_serialization()
+    @log_operation
     async def _soft_delete_cascades(self, uow: UnitOfWork, instance: SQLModelType) -> None:
         """Cascading soft deletes. Examples are with Organizations and Quizzes."""
 
@@ -269,11 +271,14 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 for fk in col.foreign_keys
                 if fk.column.table.name == instance.__tablename__
             ]
-
-            if conditions and issubclass(target_cls, models.sqlalchemy.SoftDelete):
-                stmt = (
-                    update(target_cls)
-                    .where(*conditions)
-                    .values(deleted_at=func.timezone("UTC", func.now()))
-                )
-                await uow.postgres_session.execute(stmt)
+            try:
+                if conditions and issubclass(target_cls, models.sqlalchemy.SoftDelete):
+                    stmt = (
+                        update(target_cls)
+                        .where(*conditions)
+                        .values(deleted_at=func.timezone("UTC", func.now()))
+                    )
+                    await uow.postgres_session.execute(stmt)
+            except SQLAlchemyError:
+                uow.postgres_session.expunge_all()
+                raise

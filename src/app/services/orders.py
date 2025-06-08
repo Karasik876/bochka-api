@@ -128,6 +128,8 @@ class Orders(
                 order=order,
             )
 
+        order_book_manager.clear_order_book(create_schema.instrument_id)
+
         return order
 
     async def _get_locked_amounts(
@@ -309,6 +311,8 @@ class Orders(
         uow: UnitOfWork,
         order: schemas.orders.Read,
     ) -> None:
+        self.balance_service = services.Balances()
+        self.instrument_service = services.Instruments()
         if order.locked_money_amount and order.locked_money_amount > 0:
             rub_instrument = await self.instrument_service.read_by_ticker(uow, "RUB")
 

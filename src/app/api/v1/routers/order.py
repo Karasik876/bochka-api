@@ -86,9 +86,16 @@ async def cancel_order(
             message="You dont have permission to cancel this order",
             service_name="Orders",
         )
+    if order.order_type == models.order.OrderType.MARKET or order.status in {
+        models.order.OrderStatus.EXECUTED,
+        models.order.OrderStatus.CANCELLED,
+    }:
+        raise core.services.exceptions.PermissionDeniedError(
+            message="Cant delete executed or market order"
+        )
 
     get_order_book_manager().clear_order_book(
-        order.instrument_id,
+        order.instrument.id,
     )  # можно просто удалить (нужен новый метод)
 
     await orders_service.refund_locked_amount(uow, order)

@@ -1,3 +1,4 @@
+import tenacity
 from fastapi import FastAPI, Request, status
 from fastapi.responses import ORJSONResponse
 
@@ -136,6 +137,15 @@ def register_error_handlers(app: FastAPI) -> None:  # noqa: C901
             "Not Implemented",
             "Not Implemented",
             "not_implemented",
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    @app.exception_handler(tenacity.RetryError)
+    def handle_retry_error(request: Request, exc: tenacity.RetryError) -> ORJSONResponse:
+        return make_error_response(
+            "Retry error",
+            "Retry error",
+            "retry_error",
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

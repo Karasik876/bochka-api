@@ -49,7 +49,7 @@ class Orders(core.repositories.sqlalchemy.BaseCRUD[models.Order]):
                     models.order.OrderStatus.NEW,
                     models.order.OrderStatus.PARTIALLY_EXECUTED,
                 ]),
-                models.Order.locked_instrument_amount.isnot(None),
+                models.Order.locked_instrument_amount.is_not(None),
                 models.Order.deleted_at.is_(None),
             )
             locked_instrument = await uow.postgres_session.scalar(query)
