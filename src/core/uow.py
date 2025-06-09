@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
@@ -25,12 +27,34 @@ class UnitOfWork:
         try:
             if self._postgres_session:
                 if exc_type is not None:
-                    await self._postgres_session.rollback()
+                    try:
+                        await self._postgres_session.rollback()
+                    except Exception as rollback_ex:
+                        logging.exception(f"Rollback failed: {rollback_ex}")
+                    finally:
+                        await self._reset_session()
                 else:
-                    await self._postgres_session.commit()
+                    try:
+                        await self._postgres_session.commit()
+                    except Exception:
+                        await self._postgres_session.rollback()
+                        raise
         finally:
             if self._postgres_session:
                 await self._postgres_session.close()
+            self._postgres_session = None
+
+    async def _reset_session(self):
+        try:
+            await self._postgres_session.rollback()
+
+            self._postgres_session.expunge_all()
+
+            await self._postgres_session.close()
+            self._postgres_session = await self._postgres_manager.get_session()
+        except Exception as reset_ex:
+            logging.exception(f"Session reset failed: {reset_ex}")
+            self._postgres_session = None
 
     @property
     def postgres_session(self) -> AsyncSession:

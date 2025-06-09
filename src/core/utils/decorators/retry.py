@@ -1,6 +1,5 @@
 import logging
 
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from tenacity import (
     retry,
     retry_if_exception,
@@ -9,13 +8,16 @@ from tenacity import (
     wait_random,
 )
 
-
-def is_serialization_failure(exception: BaseException) -> bool:
-    return isinstance(exception, OperationalError)
+from src import core
 
 
 def is_unexpected_error(exception: BaseException) -> bool:
-    if isinstance(exception, SQLAlchemyError):
+    if not (
+        isinstance(
+            exception,
+            core.repositories.exceptions.RepositoryError | core.services.exceptions.ServiceError,
+        )
+    ):
         logger = logging.getLogger("retry")
         logger.error("Retry error", extra={"original_error": str(exception)})
         return True

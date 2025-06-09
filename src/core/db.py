@@ -23,6 +23,7 @@ class PostgresManager:
             settings.POSTGRES.URL,
             poolclass=AsyncAdaptedQueuePool,
             pool_recycle=300,
+            pool_size=15,
             isolation_level="SERIALIZABLE",
         )
 

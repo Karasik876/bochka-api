@@ -5,11 +5,11 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from sqlalchemy import Select, and_, func, inspect, or_, select, update
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories, schemas
-from src.core.utils.decorators import log_operation, retry_on_serialization
+from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -28,7 +28,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
     search_fields: ClassVar[list[InstrumentedAttribute]] = []
 
     @retry_on_serialization()
-    @log_operation
     async def create(self, uow: UnitOfWork, data: dict) -> SQLModelType:
         try:
             session = uow.postgres_session
@@ -49,13 +48,12 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 self.model.__tablename__,
                 err_info,
             ) from e
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
         return instance
 
     @retry_on_serialization()
-    @log_operation
     async def create_many(self, uow: UnitOfWork, data_list: list[dict]) -> list[SQLModelType]:
         try:
             session = uow.postgres_session
@@ -76,14 +74,13 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 self.model.__tablename__,
                 err_info,
             ) from e
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
 
         return instances
 
     @retry_on_serialization()
-    @log_operation
     async def read_by_id(
         self,
         uow: UnitOfWork,
@@ -107,7 +104,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 query = query.where(self.model.deleted_at.is_(None))
 
             return await session.scalar(query)
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
 
@@ -151,7 +148,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
         return query
 
     @retry_on_serialization()
-    @log_operation
     async def read_many(
         self,
         uow: UnitOfWork,
@@ -187,12 +183,11 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
             result = await session.scalars(query)
             return result.all()
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
 
     @retry_on_serialization()
-    @log_operation
     async def update_by_id(
         self,
         uow: UnitOfWork,
@@ -210,12 +205,11 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             else:
                 self.logger.warning("Update target not found", extra={"updated": False})
             return instance
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
 
     @retry_on_serialization()
-    @log_operation
     async def delete_by_id(self, uow: UnitOfWork, entity_id: custom_types.EntityID) -> bool:
         try:
             session = uow.postgres_session
@@ -235,12 +229,11 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             await session.delete(instance)
             await session.flush()
             return True
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
 
     @retry_on_serialization()
-    @log_operation
     async def _soft_delete_cascades(self, uow: UnitOfWork, instance: SQLModelType) -> None:
         """Cascading soft deletes. Examples are with Organizations and Quizzes."""
 
@@ -279,6 +272,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                         .values(deleted_at=func.timezone("UTC", func.now()))
                     )
                     await uow.postgres_session.execute(stmt)
-            except SQLAlchemyError:
+            except Exception:
                 uow.postgres_session.expunge_all()
                 raise

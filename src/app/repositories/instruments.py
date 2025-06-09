@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Row, Uuid, select
-from sqlalchemy.exc import SQLAlchemyError
 
 from src import core
 from src.app import models
@@ -29,7 +28,7 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
             instruments = await session.execute(instruments_query)
 
             return instruments.all()
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
 
@@ -44,6 +43,6 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
                 query = query.where(models.Instrument.deleted_at.is_(None))
 
             return await uow.postgres_session.scalar(query)
-        except SQLAlchemyError:
+        except Exception:
             uow.postgres_session.expunge_all()
             raise
