@@ -194,6 +194,7 @@ class Orders(
             uow,
             schemas.orders.Filters(
                 direction=order_direction,
+                order_type=models.OrderType.LIMIT,
                 instrument_id=instrument_id,
                 status=[models.OrderStatus.NEW, models.OrderStatus.PARTIALLY_EXECUTED],
                 price_from=price_from,

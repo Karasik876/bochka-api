@@ -129,6 +129,7 @@ class OrderBook(BaseModel):
 
 class Filters(core.schemas.BaseFilters):
     direction: list[models.order.Direction] | models.order.Direction | None = None
+    order_type: list[models.order.OrderType] | models.order.OrderType | None = None
     instrument_id: list[UUID] | UUID | None = None
     status: list[models.order.OrderStatus] | models.order.OrderStatus | None = None
     user_id: list[UUID] | UUID | None = None
