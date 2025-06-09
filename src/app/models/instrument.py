@@ -8,7 +8,6 @@ from src import core
 
 if TYPE_CHECKING:
     from src.app.models.balance import Balance
-    from src.app.models.balance_operation import BalanceOperation
     from src.app.models.order import Order
     from src.app.models.transaction import Transaction
 
@@ -21,15 +20,14 @@ class Instrument(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete)
     ticker: Mapped[str] = mapped_column(String(10))
     name: Mapped[str] = mapped_column(String(255))
 
-    balances: Mapped[list["Balance"]] = relationship("Balance", back_populates="instrument")
-    balance_operations: Mapped[list["BalanceOperation"]] = relationship(
-        "BalanceOperation",
-        back_populates="instrument",
+    balances: Mapped[list["Balance"]] = relationship(
+        "Balance", back_populates="instrument", lazy="selectin"
     )
-    orders: Mapped[list["Order"]] = relationship("Order", back_populates="instrument")
+    orders: Mapped[list["Order"]] = relationship(
+        "Order", back_populates="instrument", lazy="selectin"
+    )
     transactions: Mapped[list["Transaction"]] = relationship(
-        "Transaction",
-        back_populates="instrument",
+        "Transaction", back_populates="instrument", lazy="selectin"
     )
 
     __table_args__ = (

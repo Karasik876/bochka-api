@@ -23,7 +23,9 @@ class Balance(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
         Uuid, ForeignKey("instruments.id"), primary_key=True
     )
 
-    user: Mapped["User"] = relationship("User", back_populates="balances")
-    instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="balances")
+    user: Mapped["User"] = relationship("User", back_populates="balances", lazy="selectin")
+    instrument: Mapped["Instrument"] = relationship(
+        "Instrument", back_populates="balances", lazy="selectin"
+    )
 
     __table_args__ = (CheckConstraint("amount >= 0", name="check_balance_amount_non_negative"),)

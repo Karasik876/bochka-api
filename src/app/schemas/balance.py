@@ -43,6 +43,10 @@ class Operation(BaseModel):
     ticker: instrument_schemas.Ticker
 
 
+class OperationSuccess(BaseModel):
+    success: bool = True
+
+
 class Filters(core.schemas.BaseFilters):
     user_id: list[UUID] | UUID | None = None
     ticker: list[instrument_schemas.Ticker] | instrument_schemas.Ticker | None = None

@@ -9,7 +9,6 @@ from src import core
 
 if TYPE_CHECKING:
     from src.app.models.balance import Balance
-    from src.app.models.balance_operation import BalanceOperation
     from src.app.models.order import Order
 
 settings = core.config.get_settings()
@@ -28,9 +27,7 @@ class User(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     name: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(default=UserRole.USER)
 
-    balances: Mapped[list["Balance"]] = relationship("Balance", back_populates="user")
-    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
-    operations: Mapped[list["BalanceOperation"]] = relationship(
-        "BalanceOperation",
-        back_populates="user",
+    balances: Mapped[list["Balance"]] = relationship(
+        "Balance", back_populates="user", lazy="selectin"
     )
+    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", lazy="selectin")

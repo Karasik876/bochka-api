@@ -63,7 +63,7 @@ async def delete_user(
 @router.post(
     "/balance/deposit",
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
-    response_model=schemas.balance_operations.OperationSuccess,
+    response_model=schemas.balance.OperationSuccess,
 )
 async def deposit(
     uow: dependencies.uow.Postgres,
@@ -72,13 +72,13 @@ async def deposit(
 ):
     await balances_service.deposit(uow, operation_data)
 
-    return schemas.balance_operations.OperationSuccess(success=True)
+    return schemas.balance.OperationSuccess(success=True)
 
 
 @router.post(
     "/balance/withdraw",
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
-    response_model=schemas.balance_operations.OperationSuccess,
+    response_model=schemas.balance.OperationSuccess,
 )
 async def withdraw(
     uow: dependencies.uow.Postgres,
@@ -87,4 +87,4 @@ async def withdraw(
 ):
     await balances_service.withdraw(uow, operation_data)
 
-    return schemas.balance_operations.OperationSuccess(success=True)
+    return schemas.balance.OperationSuccess(success=True)

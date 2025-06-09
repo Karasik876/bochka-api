@@ -50,7 +50,7 @@ class Order(core.models.sqlalchemy.Base, core.models.sqlalchemy.SoftDelete):
     )
     instrument_id: Mapped[Uuid] = mapped_column(Uuid, ForeignKey("instruments.id"))
 
-    user: Mapped["User"] = relationship("User", back_populates="orders")
+    user: Mapped["User"] = relationship("User", back_populates="orders", lazy="selectin")
     instrument: Mapped["Instrument"] = relationship(
         "Instrument", back_populates="orders", lazy="selectin"
     )
