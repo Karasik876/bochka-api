@@ -1,4 +1,3 @@
-from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -76,13 +75,17 @@ async def cancel_order(
     uow: dependencies.uow.Postgres,
 ):
     order = await orders_service.read_by_id(uow, order_id)
-    if (
-        order.user_id != current_user.id
-        or order.status
-        in Literal[models.order.OrderStatus.CANCELLED, models.order.OrderStatus.EXECUTED]
-    ):
+    if order.user_id != current_user.id:
         raise core.services.exceptions.PermissionDeniedError(
-            message="You dont have permission to cancel this order", service_name="Orders"
+            message="You dont have permission to cancel this order",
+            service_name="Orders",
+        )
+    if order.order_type == models.order.OrderType.MARKET or order.status in {
+        models.order.OrderStatus.EXECUTED,
+        models.order.OrderStatus.CANCELLED,
+    }:
+        raise core.services.exceptions.PermissionDeniedError(
+            message="Cant delete executed or market order"
         )
 
     await orders_service.cancel_order(uow, order_id)

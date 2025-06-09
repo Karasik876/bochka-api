@@ -8,7 +8,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories
 from src.core.uow import UnitOfWork
-from src.core.utils.decorators import log_operation, retry_on_serialization
+from src.core.utils.decorators import log_operation
 from src.core.utils.decorators.retry import is_serialization_failure
 
 SQLModelType = TypeVar("SQLModelType", bound=models.sqlalchemy.Base)
@@ -24,7 +24,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
     search_fields: ClassVar[list[InstrumentedAttribute]] = []
 
-    @retry_on_serialization()
     @log_operation
     async def create(self, uow: UnitOfWork, data: dict) -> SQLModelType:
         try:
@@ -57,7 +56,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
         return instance
 
-    @retry_on_serialization()
     @log_operation
     async def create_many(self, uow: UnitOfWork, data_list: list[dict]) -> list[SQLModelType]:
         try:
@@ -185,7 +183,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 str(e),
             ) from e
 
-    @retry_on_serialization()
     @log_operation
     async def update_by_id(
         self,
@@ -212,7 +209,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 str(e),
             ) from e
 
-    @retry_on_serialization()
     @log_operation
     async def delete_by_id(self, uow: UnitOfWork, entity_id: custom_types.EntityID) -> bool:
         try:
