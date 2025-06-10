@@ -18,9 +18,8 @@ class UnitOfWork:
 
     async def __aenter__(self):
         if self._postgres_manager:
-            self._postgres_session: AsyncSession = await self._postgres_manager.get_session()
+            self._postgres_session = await self._postgres_manager.get_session()
             await self._postgres_session.begin()
-
         return self
 
     async def __aexit__(self, exc_type=None, exc=None, tb=None):
@@ -37,7 +36,7 @@ class UnitOfWork:
                     try:
                         await self._postgres_session.commit()
                     except Exception:
-                        await self._postgres_session.rollback()
+                        await self._reset_session()
                         raise
         finally:
             if self._postgres_session:
@@ -45,13 +44,14 @@ class UnitOfWork:
             self._postgres_session = None
 
     async def _reset_session(self):
+        logging.debug("RESET SESSION CALLED")
         try:
-            await self._postgres_session.rollback()
-
             self._postgres_session.expunge_all()
+            await self._postgres_session.rollback()
 
             await self._postgres_session.close()
             self._postgres_session = await self._postgres_manager.get_session()
+            await self._postgres_session.begin()
         except Exception as reset_ex:
             logging.exception(f"Session reset failed: {reset_ex}")
             self._postgres_session = None

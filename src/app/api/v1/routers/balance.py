@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from src.app import schemas
 from src.app.api import dependencies
 from src.core.schemas import PaginationParams
+from src.core.utils.decorators import retry_on_serialization
 
 router = APIRouter(prefix="/balance", tags=["balance"])
 
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/balance", tags=["balance"])
     "",
     response_model=schemas.balance.Response,
 )
+@retry_on_serialization()
 async def get_balance(
     uow: dependencies.uow.Postgres,
     current_user: dependencies.permissions.CurrentUser,

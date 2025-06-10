@@ -6,7 +6,6 @@ from sqlalchemy import select
 
 from src import core
 from src.app import models
-from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -16,7 +15,6 @@ class Users(core.repositories.sqlalchemy.BaseCRUD[models.User]):
     def __init__(self):
         super().__init__(models.User)
 
-    @retry_on_serialization()
     async def read_by_name(
         self,
         uow: UnitOfWork,
@@ -40,5 +38,4 @@ class Users(core.repositories.sqlalchemy.BaseCRUD[models.User]):
                 )
             return user
         except Exception:
-            uow.postgres_session.expunge_all()
             raise

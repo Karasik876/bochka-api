@@ -7,7 +7,6 @@ from sqlalchemy import func, select
 
 from src import core
 from src.app import models
-from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -17,7 +16,6 @@ class Orders(core.repositories.sqlalchemy.BaseCRUD[models.Order]):
     def __init__(self):
         super().__init__(models.Order)
 
-    @retry_on_serialization()
     async def sum_locked_money(self, uow: UnitOfWork, user_id: UUID) -> int:
         try:
             query = select(func.sum(models.Order.locked_money_amount)).where(
@@ -32,10 +30,8 @@ class Orders(core.repositories.sqlalchemy.BaseCRUD[models.Order]):
             locked_money = await uow.postgres_session.scalar(query)
             return locked_money or 0
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
-    @retry_on_serialization()
     async def sum_locked_instrument(
         self, uow: UnitOfWork, user_id: UUID, instrument_id: UUID
     ) -> int:
@@ -55,5 +51,4 @@ class Orders(core.repositories.sqlalchemy.BaseCRUD[models.Order]):
 
             return locked_instrument or 0
         except Exception:
-            uow.postgres_session.expunge_all()
             raise

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -36,36 +37,16 @@ class Orders(
         instrument_id: UUID,
         pagination: core.schemas.PaginationParams | None = None,
     ) -> list[schemas.orders.Read]:
-        buy_orders = await self.read_many(
+        all_orders = await self.read_many(
             uow,
             filters=schemas.orders.Filters(
                 instrument_id=instrument_id,
                 order_type=models.order.OrderType.LIMIT,
                 status=[models.order.OrderStatus.NEW, models.order.OrderStatus.PARTIALLY_EXECUTED],
-                direction=models.order.Direction.BUY,
-            ),
-            sorting=schemas.orders.SortParams(
-                sort_by=schemas.orders.SortFields.PRICE,
-                order_by=core.schemas.SortOrderField.DESCENDING,
             ),
             pagination=pagination,
         )
-        sell_orders = await self.read_many(
-            uow,
-            filters=schemas.orders.Filters(
-                instrument_id=instrument_id,
-                order_type=models.order.OrderType.LIMIT,
-                status=[models.order.OrderStatus.NEW, models.order.OrderStatus.PARTIALLY_EXECUTED],
-                direction=models.order.Direction.SELL,
-            ),
-            sorting=schemas.orders.SortParams(
-                sort_by=schemas.orders.SortFields.PRICE,
-                order_by=core.schemas.SortOrderField.ASCENDING,
-            ),
-            pagination=pagination,
-        )
-        buy_orders.extend(sell_orders)
-        return buy_orders
+        return all_orders
 
     async def create(
         self,
@@ -96,8 +77,9 @@ class Orders(
             rub_balance,
             instrument_balance,
         )
-
-        order = await super().create(uow, create_schema, additional_data=additional_data)
+        async with uow.postgres_session.begin_nested():
+            with threading.Lock():
+                order = await super().create(uow, create_schema, additional_data=additional_data)
 
         order_book_manager = utils.get_order_book_manager()
 
@@ -142,7 +124,9 @@ class Orders(
         if create_schema.order_type == models.order.OrderType.LIMIT:
             filled = 0
             if create_schema.direction == models.order.Direction.BUY:
-                locked_money = await self.repo.sum_locked_money(uow, create_schema.user_id)
+                async with uow.postgres_session.begin_nested():
+                    with threading.Lock():
+                        locked_money = await self.repo.sum_locked_money(uow, create_schema.user_id)
 
                 if create_schema.price is None:
                     raise ValueError("Limit orders require price")
@@ -159,11 +143,13 @@ class Orders(
                 locked_money_amount, locked_instrument_amount = required_money, None
 
             else:  # LIMIT SELL
-                locked_instrument = await self.repo.sum_locked_instrument(
-                    uow,
-                    create_schema.user_id,
-                    instrument_balance.instrument_id,
-                )
+                async with uow.postgres_session.begin_nested():
+                    with threading.Lock():
+                        locked_instrument = await self.repo.sum_locked_instrument(
+                            uow,
+                            create_schema.user_id,
+                            instrument_balance.instrument_id,
+                        )
 
                 available_instrument = instrument_balance.amount - locked_instrument
 

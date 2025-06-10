@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute
 
 from src.core import custom_types, models, repositories, schemas
-from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -27,7 +26,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
     search_fields: ClassVar[list[InstrumentedAttribute]] = []
 
-    @retry_on_serialization()
     async def create(self, uow: UnitOfWork, data: dict) -> SQLModelType:
         try:
             session = uow.postgres_session
@@ -49,11 +47,9 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 err_info,
             ) from e
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
         return instance
 
-    @retry_on_serialization()
     async def create_many(self, uow: UnitOfWork, data_list: list[dict]) -> list[SQLModelType]:
         try:
             session = uow.postgres_session
@@ -75,12 +71,10 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 err_info,
             ) from e
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
         return instances
 
-    @retry_on_serialization()
     async def read_by_id(
         self,
         uow: UnitOfWork,
@@ -105,21 +99,23 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
             return await session.scalar(query)
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
     def _process_filters(self, query: Select, filters: dict[str, Any]) -> Select:
+        column_cache = {}
         for field, value in filters.items():
             if value is None:
                 continue
             if field.endswith("_from"):
                 field_name = field[:-5]
-                column = getattr(self.model, field_name)
-                query = query.where(column >= value)
+                if field_name not in column_cache:
+                    column_cache[field_name] = getattr(self.model, field_name)
+                query = query.where(column_cache[field_name] >= value)
             elif field.endswith("_to"):
                 field_name = field[:-3]
-                column = getattr(self.model, field_name)
-                query = query.where(column <= value)
+                if field_name not in column_cache:
+                    column_cache[field_name] = getattr(self.model, field_name)
+                query = query.where(column_cache[field_name] <= value)
             elif field == "search":
                 if not self.search_fields:
                     self.logger.error(
@@ -147,7 +143,6 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                     query = query.where(column == value)
         return query
 
-    @retry_on_serialization()
     async def read_many(
         self,
         uow: UnitOfWork,
@@ -184,10 +179,8 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             result = await session.scalars(query)
             return result.all()
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
-    @retry_on_serialization()
     async def update_by_id(
         self,
         uow: UnitOfWork,
@@ -205,11 +198,21 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             else:
                 self.logger.warning("Update target not found", extra={"updated": False})
             return instance
+        except IntegrityError as e:
+            if "duplicate" in (err_info := str(e)):
+                raise repositories.exceptions.DuplicateError(
+                    self.__class__.__name__,
+                    self.model.__tablename__,
+                    err_info,
+                ) from e
+            raise repositories.exceptions.EntityCreateError(
+                self.__class__.__name__,
+                self.model.__tablename__,
+                err_info,
+            ) from e
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
-    @retry_on_serialization()
     async def delete_by_id(self, uow: UnitOfWork, entity_id: custom_types.EntityID) -> bool:
         try:
             session = uow.postgres_session
@@ -229,11 +232,21 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
             await session.delete(instance)
             await session.flush()
             return True
+        except IntegrityError as e:
+            if "duplicate" in (err_info := str(e)):
+                raise repositories.exceptions.DuplicateError(
+                    self.__class__.__name__,
+                    self.model.__tablename__,
+                    err_info,
+                ) from e
+            raise repositories.exceptions.EntityCreateError(
+                self.__class__.__name__,
+                self.model.__tablename__,
+                err_info,
+            ) from e
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
-    @retry_on_serialization()
     async def _soft_delete_cascades(self, uow: UnitOfWork, instance: SQLModelType) -> None:
         """Cascading soft deletes. Examples are with Organizations and Quizzes."""
 
@@ -273,5 +286,4 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                     )
                     await uow.postgres_session.execute(stmt)
             except Exception:
-                uow.postgres_session.expunge_all()
                 raise

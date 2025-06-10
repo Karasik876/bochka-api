@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import heapq
+import threading
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -24,11 +25,13 @@ class OrderBook:
         uow: UnitOfWork,
         pagination: core.schemas.PaginationParams | None = None,
     ):
-        active_orders = await services.Orders().find_active_limit_orders(
-            uow,
-            self.instrument_id,
-            pagination,
-        )
+        async with uow.postgres_session.begin_nested():
+            with threading.Lock():
+                active_orders = await services.Orders().find_active_limit_orders(
+                    uow,
+                    self.instrument_id,
+                    pagination,
+                )
 
         buy_orders, sell_orders = [], []
 
@@ -77,8 +80,7 @@ class OrderBook:
             )  # if orders were created at the same time (happens in tests)
             else buy_order
         )
-        if maker_order.price is None:
-            raise ValueError("Maker order price cannot be None")
+        assert maker_order.price is not None
 
         return maker_order.price
 
@@ -113,14 +115,16 @@ class OrderBook:
             instrument_id=self.instrument_id,
             amount=quantity,
         )
-        await self.transaction_service.create(
-            uow,
-            schemas.transactions.Create(
-                instrument_id=self.instrument_id,
-                amount=quantity,
-                price=execution_price,
-            ),
-        )
+        async with uow.postgres_session.begin_nested():
+            with threading.Lock():
+                await self.transaction_service.create(
+                    uow,
+                    schemas.transactions.Create(
+                        instrument_id=self.instrument_id,
+                        amount=quantity,
+                        price=execution_price,
+                    ),
+                )
 
         updated_buy_order, updated_sell_order = None, None
         for order in [buy_order, sell_order]:
@@ -143,12 +147,13 @@ class OrderBook:
                         status=updated_status,
                         locked_money_amount=updated_locked_money_amount,
                     )
-
-                    updated_buy_order = await self.order_service.update_by_id(
-                        uow,
-                        order.id,
-                        buy_order_update,
-                    )
+                    async with uow.postgres_session.begin_nested():
+                        with threading.Lock():
+                            updated_buy_order = await self.order_service.update_by_id(
+                                uow,
+                                order.id,
+                                buy_order_update,
+                            )
 
                     if updated_buy_order.status == models.order.OrderStatus.EXECUTED:
                         self._remove_heap_best_order(self.bids, updated_buy_order.id)
@@ -165,12 +170,13 @@ class OrderBook:
                         status=updated_status,
                         locked_instrument_amount=updated_locked_instrument_amount,
                     )
-
-                    updated_sell_order = await self.order_service.update_by_id(
-                        uow,
-                        order.id,
-                        sell_order_update,
-                    )
+                    async with uow.postgres_session.begin_nested():
+                        with threading.Lock():
+                            updated_sell_order = await self.order_service.update_by_id(
+                                uow,
+                                order.id,
+                                sell_order_update,
+                            )
 
                     if updated_sell_order.status == models.order.OrderStatus.EXECUTED:
                         self._remove_heap_best_order(self.asks, updated_sell_order.id)

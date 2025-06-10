@@ -505,3 +505,68 @@ async def test_limit_sell_executes_limit_buys(  # noqa: PLR0914
 
     assert len(transactions) == 4  # noqa: PLR2004
     assert all("amount" in t for t in transactions)
+
+
+async def test_cancel_order(
+    db_session: AsyncSession,
+    user_client: AsyncClient,
+    instrument: models.Instrument,
+    admin_user: models.User,
+    all_balances: AllBalances,
+    create_order: Callable,
+):
+    start_user_balance, start_user_rub_balance, start_admin_balance, start_admin_rub_balance = [
+        b.amount for b in all_balances
+    ]
+
+    limit_order: models.Order = await create_order(
+        direction=models.order.Direction.SELL,
+        instrument_id=instrument.id,
+        user_id=admin_user.id,
+        qty=10,
+        price=20,
+        status=models.order.OrderStatus.NEW,
+    )
+
+    user_limit_order_create = schemas.orders.CreateRequest(
+        direction=models.order.Direction.BUY,
+        ticker=instrument.ticker,
+        qty=limit_order.qty + 1,
+        price=limit_order.price,
+    )
+    response = await user_client.post("/order", json=user_limit_order_create.model_dump())
+    assert "detail" not in response.json()
+
+    limit_orders_sell = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.SELL
+    )
+    limit_orders_buy = await get_orders(
+        db_session, models.order.OrderType.LIMIT, models.order.Direction.BUY
+    )
+
+    assert len(limit_orders_sell) == len(limit_orders_buy) == 1
+
+    sell_order_db, buy_order_db = limit_orders_sell[0], limit_orders_buy[0]
+
+    assert sell_order_db.status == models.order.OrderStatus.EXECUTED
+    assert sell_order_db.filled == limit_order.qty
+
+    assert buy_order_db.status == models.order.OrderStatus.PARTIALLY_EXECUTED
+    assert buy_order_db.filled == limit_order.qty
+
+    locked_money_after_operation = buy_order_db.price * (buy_order_db.qty - buy_order_db.filled)
+    assert buy_order_db.locked_money_amount == locked_money_after_operation
+
+    balance_after_operation = start_user_rub_balance - buy_order_db.price * buy_order_db.filled
+    assert all_balances.user_rub_balance.amount == balance_after_operation
+
+    response = await user_client.delete(f"/order/{buy_order_db.id}")
+    assert "detail" not in response.json()
+
+    assert (
+        all_balances.user_rub_balance.amount
+        == balance_after_operation + locked_money_after_operation
+    )
+
+    await db_session.refresh(buy_order_db)
+    assert buy_order_db.deleted_at is not None

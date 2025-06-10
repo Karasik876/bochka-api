@@ -6,11 +6,13 @@ from fastapi import APIRouter, Query
 from src.app import schemas, utils
 from src.app.api import dependencies
 from src.core.schemas import PaginationParams
+from src.core.utils.decorators import retry_on_serialization
 
 router = APIRouter(prefix="/public", tags=["public"])
 
 
 @router.post("/register", response_model=schemas.users.Auth)
+@retry_on_serialization()
 async def register(
     user_create: schemas.users.Create,
     auth_service: dependencies.services.Auth,
@@ -36,6 +38,7 @@ async def get_instruments_tickers(
 
 
 @router.get("/orderbook/{ticker}", response_model=schemas.orders.OrderBookRead)
+@retry_on_serialization()
 async def get_orderbook(
     uow: dependencies.uow.Postgres,
     instruments_service: dependencies.services.Instruments,
@@ -75,6 +78,7 @@ async def get_orderbook(
 
 
 @router.get("/transactions/{ticker}", response_model=list[schemas.transactions.Read])
+@retry_on_serialization()
 async def get_transactions(
     uow: dependencies.uow.Postgres,
     transactions_service: dependencies.services.Transactions,

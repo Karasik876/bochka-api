@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 from src import core
 from src.app import schemas, services
 from src.app.api import dependencies
+from src.core.utils.decorators import retry_on_serialization
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
     response_model=schemas.instruments.CreateResponse,
 )
+@retry_on_serialization()
 async def create_instrument(
     instrument: schemas.instruments.Create,
     instruments_service: dependencies.services.Instruments,
@@ -31,6 +33,7 @@ async def create_instrument(
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
     response_model=schemas.instruments.Delete,
 )
+@retry_on_serialization()
 async def delete_instrument(
     ticker: schemas.instruments.Ticker,
     service: dependencies.services.Instruments,
@@ -44,6 +47,7 @@ async def delete_instrument(
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
     response_model=schemas.users.Auth,
 )
+@retry_on_serialization()
 async def delete_user(
     user_id: UUID,
     users_service: dependencies.services.Users,
@@ -64,6 +68,7 @@ async def delete_user(
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
     response_model=schemas.balance.OperationSuccess,
 )
+@retry_on_serialization()
 async def deposit(
     uow: dependencies.uow.Postgres,
     balance_operation: schemas.balance.CreateRequest,
@@ -103,6 +108,7 @@ async def deposit(
     dependencies=[Depends(dependencies.permissions.get_admin_user)],
     response_model=schemas.balance.OperationSuccess,
 )
+@retry_on_serialization()
 async def withdraw(
     uow: dependencies.uow.Postgres,
     balance_operation: schemas.balance.CreateRequest,

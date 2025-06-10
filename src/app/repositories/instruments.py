@@ -7,7 +7,6 @@ from sqlalchemy import Row, Uuid, select
 
 from src import core
 from src.app import models
-from src.core.utils.decorators import retry_on_serialization
 
 if TYPE_CHECKING:
     from src.core.uow import UnitOfWork
@@ -17,7 +16,6 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
     def __init__(self):
         super().__init__(models.Instrument)
 
-    @retry_on_serialization()
     async def get_all_instruments(self, uow: UnitOfWork) -> Sequence[Row[tuple[Uuid, str]]]:
         try:
             session = uow.postgres_session
@@ -29,10 +27,8 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
 
             return instruments.all()
         except Exception:
-            uow.postgres_session.expunge_all()
             raise
 
-    @retry_on_serialization()
     async def read_by_ticker(
         self, uow: UnitOfWork, ticker: str, *, include_deleted: bool = False
     ) -> models.Instrument | None:
@@ -44,5 +40,4 @@ class Instruments(core.repositories.sqlalchemy.BaseCRUD[models.Instrument]):
 
             return await uow.postgres_session.scalar(query)
         except Exception:
-            uow.postgres_session.expunge_all()
             raise

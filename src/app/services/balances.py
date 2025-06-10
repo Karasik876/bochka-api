@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 from uuid import UUID
+
+from sqlalchemy import select
 
 from src import core
 from src.app import models, repositories, schemas, services
@@ -103,38 +106,54 @@ class Balances(
         instrument_id: UUID,
         amount: int,
     ) -> None:
-        self.balance_service = services.Balances()
-        self.instrument_service = services.Instruments()
+        session = uow.postgres_session
+        async with session.begin_nested():
+            from_balance_query = (
+                select(self.repo.model)
+                .where(
+                    self.repo.model.user_id == from_user_id,
+                    self.repo.model.instrument_id == instrument_id,
+                )
+                .with_for_update()
+            )
+            from_balance = await session.scalar(from_balance_query)
+            if from_balance is None:
+                from_balance = await self.create(
+                    uow,
+                    schemas.balance.Create(
+                        user_id=from_user_id,
+                        instrument_id=instrument_id,
+                        amount=0,
+                    ),
+                )
 
-        from_balance = await self.balance_service.get_or_create_user_balance(
-            uow,
-            from_user_id,
-            instrument_id,
-        )
+            if from_balance.amount < amount:
+                instrument = await services.Instruments().read_by_id(uow, instrument_id)
+                raise services.exceptions.InsufficientBalanceError(from_user_id, instrument.ticker)
 
-        if from_balance.amount < amount:
-            instrument = await self.instrument_service.read_by_id(uow, instrument_id)
-            raise services.exceptions.InsufficientBalanceError(from_user_id, instrument.ticker)
+            to_balance_query = (
+                select(self.repo.model)
+                .where(
+                    self.repo.model.user_id == to_user_id,
+                    self.repo.model.instrument_id == instrument_id,
+                )
+                .with_for_update()
+            )
+            to_balance = await uow.postgres_session.scalar(to_balance_query)
+            if to_balance is None:
+                to_balance = await self.create(
+                    uow,
+                    schemas.balance.Create(
+                        user_id=to_user_id,
+                        instrument_id=instrument_id,
+                        amount=0,
+                    ),
+                )
 
-        to_balance = await self.balance_service.get_or_create_user_balance(
-            uow,
-            to_user_id,
-            instrument_id,
-        )
+            from_balance.amount -= amount
+            to_balance.amount += amount
 
-        from_balance.amount -= amount
-        to_balance.amount += amount
-
-        await self.update_by_id(
-            uow,
-            {"user_id": from_user_id, "instrument_id": instrument_id},
-            schemas.balance.Update(amount=from_balance.amount),
-        )
-        await self.update_by_id(
-            uow,
-            {"user_id": to_user_id, "instrument_id": instrument_id},
-            schemas.balance.Update(amount=to_balance.amount),
-        )
+            await session.flush()
 
     async def get_or_create_user_balance(
         self,
@@ -145,18 +164,22 @@ class Balances(
         await services.Users().read_by_id(uow, user_id)
         await services.Instruments().read_by_id(uow, instrument_id)
         try:
-            balance = await self.read_by_id(
-                uow,
-                {"user_id": user_id, "instrument_id": instrument_id},
-            )
+            async with uow.postgres_session.begin_nested():
+                with threading.Lock():
+                    balance = await self.read_by_id(
+                        uow,
+                        {"user_id": user_id, "instrument_id": instrument_id},
+                    )
         except core.services.exceptions.EntityNotFoundError:
-            balance = await self.create(
-                uow,
-                schemas.balance.Create(
-                    user_id=user_id,
-                    instrument_id=instrument_id,
-                    amount=0,
-                ),
-            )
+            async with uow.postgres_session.begin_nested():
+                with threading.Lock():
+                    balance = await self.create(
+                        uow,
+                        schemas.balance.Create(
+                            user_id=user_id,
+                            instrument_id=instrument_id,
+                            amount=0,
+                        ),
+                    )
 
         return balance
