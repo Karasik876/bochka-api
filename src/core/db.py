@@ -30,12 +30,17 @@ class PostgresManager:
             settings.POSTGRES.URL,
             poolclass=AsyncAdaptedQueuePool,
             pool_recycle=300,
-            isolation_level="SERIALIZABLE",
+            isolation_level="READ COMMITTED",
         )
 
     def _create_session_factory(self) -> async_sessionmaker[AsyncSession]:
         return async_sessionmaker(
-            bind=self.engine, class_=AsyncSession, expire_on_commit=False, autobegin=False
+            bind=self.engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autobegin=False,
+            autoflush=False,
+            future=True,
         )
 
     async def get_session(self) -> AsyncSession:

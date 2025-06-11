@@ -250,13 +250,14 @@ class Orders(
 
             sell_available = sell_order.qty - sell_order.filled
             executed_qty = min(sell_available, remaining)
+            required_rub = executed_qty * cast(int, sell_order.price)
 
             await self.reserve(
                 uow,
                 order.user_id,
                 rub_instrument.id,
                 order.id,
-                cast(int, sell_order.price) * executed_qty,
+                required_rub,
             )
 
             await self._execute_trade(
