@@ -1,11 +1,21 @@
-import asyncpg
+from sqlalchemy import text
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_fixed, wait_random
+import asyncpg
+from src.core.utils.decorators.retry import is_retryable_db_error
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+from src.core import db, config, settings
 
-from src.core import db
+settings = config.get_settings()
+
+
+def is_serialization_error(exc: BaseException) -> bool:
+    return isinstance(exc, (OperationalError, DBAPIError)) and isinstance(
+        getattr(exc, "orig", None), asyncpg.exceptions.SerializationError
+    )
 
 
 class UnitOfWork:
@@ -15,22 +25,11 @@ class UnitOfWork:
         self._postgres_manager = db.get_postgres_manager() if use_postgres else None
         self._postgres_session = None
 
-    @classmethod
-    async def _is_serialization_error(cls, exc):
-        return isinstance(exc, (DBAPIError, OperationalError)) and isinstance(
-            exc.orig, asyncpg.exceptions.SerializationError
-        )
-
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_fixed(0.1) + wait_random(0.3, 1),
-        retry=retry_if_exception(lambda e: isinstance(e, asyncpg.exceptions.SerializationError)),
-        reraise=True,
-    )
     async def __aenter__(self):
         if self._postgres_manager:
             self._postgres_session = await self._postgres_manager.get_session()
             await self._postgres_session.begin()
+            await self._postgres_session.execute(text("SET lock_timeout = 10000"))
         return self
 
     async def __aexit__(self, exc_type=None, exc=None, tb=None):
@@ -43,8 +42,11 @@ class UnitOfWork:
                         await self._postgres_session.commit()
                     except Exception as commit_ex:
                         await self._postgres_session.rollback()
-                        if self._is_serialization_error(commit_ex):
-                            raise  # Will be caught by tenacity
+
+                        # Пометка для повторной попытки
+                        if is_serialization_error(commit_ex):
+                            raise  # Будет перехвачено tenacity
+
                         raise
         finally:
             if self._postgres_session:
@@ -53,5 +55,6 @@ class UnitOfWork:
 
     @property
     def postgres_session(self) -> AsyncSession:
-        assert self._postgres_session is not None
+        if self._postgres_session is None:
+            raise RuntimeError("Сессия PostgreSQL не инициализирована")
         return self._postgres_session

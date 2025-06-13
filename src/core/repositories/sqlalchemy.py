@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Sequence
 from typing import Any, ClassVar, TypeVar
+from xml.etree.ElementInclude import include
 
 from sqlalchemy import Select, and_, func, inspect, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -9,7 +10,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from src.core import custom_types, models, repositories
 from src.core.uow import UnitOfWork
 from src.core.utils.decorators import log_operation
-from src.core.utils.decorators.retry import is_serialization_failure
+from src.core.utils.decorators.retry import is_retryable_db_error
 
 SQLModelType = TypeVar("SQLModelType", bound=models.sqlalchemy.Base)
 
@@ -41,7 +42,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 self.__class__.__name__, self.model.__tablename__, err_info
             ) from e
         except OperationalError as e:
-            if is_serialization_failure(e):
+            if is_retryable_db_error(e):
                 uow.postgres_session.expunge_all()
                 raise
             raise repositories.exceptions.DatabaseError(
@@ -83,11 +84,17 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
 
     @log_operation
     async def read_by_id(
-        self, uow: UnitOfWork, entity_id: custom_types.EntityID, *, include_deleted: bool = False
+        self,
+        uow: UnitOfWork,
+        entity_id: custom_types.EntityID,
+        *,
+        include_deleted: bool = False,
+        include_locked: bool = True,
     ) -> SQLModelType | None:
         try:
             session = uow.postgres_session
             query = select(self.model)
+            query = query.with_for_update(skip_locked=not include_locked)
 
             pk_columns: tuple = inspect(self.model).primary_key
 
@@ -156,11 +163,13 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
         limit: int = 10,
         *,
         include_deleted: bool = False,
+        include_locked: bool = True,
     ) -> Sequence[SQLModelType]:
         try:
             session = uow.postgres_session
 
             query = select(self.model)
+            query = query.with_for_update(skip_locked=not include_locked)
 
             if not include_deleted and issubclass(self.model, models.sqlalchemy.SoftDelete):
                 query = query.where(self.model.deleted_at.is_(None))
@@ -197,7 +206,7 @@ class BaseCRUD(repositories.abstract.BaseCRUD[SQLModelType]):
                 for key, value in data.items():
                     setattr(instance, key, value)
                 await session.flush()
-                await session.refresh(instance)
+                await session.refresh(instance, with_for_update=True)
             else:
                 self.logger.warning("Update target not found", extra={"updated": False})
             return instance

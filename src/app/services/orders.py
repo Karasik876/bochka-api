@@ -1,3 +1,4 @@
+import json
 from typing import cast
 from uuid import UUID
 
@@ -6,6 +7,26 @@ from src.app import models, repositories, schemas, services
 
 from . import exceptions
 
+import aio_pika
+
+async def setup_rabbitmq():
+    connection = await aio_pika.connect_robust("amqp://guest:guest@127.0.0.1/")
+    channel = await connection.channel()
+
+    # Declare exchange
+    exchange = await channel.declare_exchange(
+        "order_processing_exchange",
+        aio_pika.ExchangeType.DIRECT,
+        durable=True
+    )
+
+    # Declare queue
+    queue = await channel.declare_queue("order_processing", durable=True)
+
+    # Bind queue
+    await queue.bind(exchange, routing_key="order_processing")
+
+    return exchange
 
 class Orders(
     core.services.BaseCRUD[
@@ -328,6 +349,68 @@ class Orders(
 
             remaining -= executed_qty
 
+    async def _check_market_order_can_be_done(
+        self, uow: core.UnitOfWork, order: schemas.orders.Read
+    ) -> None:
+        match order.direction:
+            case models.OrderDirection.BUY:
+                remaining = order.qty - order.filled
+
+                rub_instrument = await self.instruments_service.read_by_ticker(uow, "RUB")
+                user_rub_balance = await self.balances_service.get_or_create_user_balance(
+                    uow, order.user.id, rub_instrument.id
+                )
+                available_balance = user_rub_balance.available_amount
+
+                while remaining > 0:
+                    sell_order = await self._find_best_order(
+                        uow, order.instrument.id, models.OrderDirection.SELL
+                    )
+
+                    if not sell_order:
+                        raise exceptions.OrderRejectedError(
+                            order.id, order.qty, order.qty - remaining
+                        )
+
+                    sell_available = sell_order.qty - sell_order.filled
+                    executed_qty = min(sell_available, remaining)
+                    required_rub = executed_qty * cast(int, sell_order.price)
+
+                    available_balance -= required_rub
+                    if available_balance < 0:
+                        raise services.exceptions.InsufficientBalanceError(
+                            order.user.id, rub_instrument.ticker
+                        )
+
+                    remaining -= executed_qty
+
+            case models.OrderDirection.SELL:
+                remaining = order.qty - order.filled
+
+                user_balance = await self.balances_service.get_or_create_user_balance(
+                    uow, order.user.id, order.instrument.id
+                )
+                available_balance = user_balance.available_amount
+
+                while remaining > 0:
+                    buy_order = await self._find_best_order(
+                        uow, order.instrument.id, models.OrderDirection.BUY
+                    )
+                    if not buy_order:
+                        raise exceptions.OrderRejectedError(
+                            order.id, order.qty, order.qty - remaining
+                        )
+
+                    executed_qty = min(buy_order.qty - buy_order.filled, order.qty - order.filled)
+
+                    available_balance -= executed_qty
+                    if available_balance < 0:
+                        raise services.exceptions.InsufficientBalanceError(
+                            order.user.id, order.instrument.ticker
+                        )
+
+                    remaining -= executed_qty
+
     async def create(
         self,
         uow: core.UnitOfWork,
@@ -339,7 +422,26 @@ class Orders(
 
         order = await super().create(uow, order_data, additional_data=additional_data)
 
-        await self.order_handlers[order.order_type, order.direction](uow, order)
+        if order.order_type == models.OrderType.MARKET:
+            await self._check_market_order_can_be_done(uow, order)
+
+        self.rabbitmq_publisher = await setup_rabbitmq()
+
+        order_msg = order.model_dump()["id"] = str(order.id)
+
+        try:
+            message = aio_pika.Message(
+                body=json.dumps(order_msg).encode(),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT
+            )
+            await self.rabbitmq_publisher.publish(
+                message,
+                routing_key="order_processing"
+            )
+            self.logger.info("Published order {order.id} to RabbitMQ")
+        except Exception:
+            self.logger.exception("Failed to publish order")
+            # Consider adding retry logic here
 
         return order
 
