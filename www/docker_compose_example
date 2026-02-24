@@ -1,0 +1,115 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    env_file: ../.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "$POSTGRES_DB" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file: ../.env
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    command: server --console-address ":9001" /data/
+
+  redis:
+    image: valkey/valkey:8.1.4-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --save 60 1 --loglevel warning --requirepass somepassword
+    env_file: ../.env
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "somepassword", "ping" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+  maildev:
+    image: maildev/maildev
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Yekaterinburg
+      - MAILDEV_WEB_PORT=1080
+      - MAILDEV_SMTP_PORT=1025
+    ports:
+      - "8085:1080"
+      - "1025:1025"
+
+  dozzle:
+    image: amir20/dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "9999:8080"
+
+  main-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    command: sh -c "granian src.main:main_app --host 0.0.0.0 --port 8000 --interface asgi --no-access-log --reload --reload-paths src/ --workers 1"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file: ../.env
+    volumes:
+      - ../src:/app/src
+      - ../alembic.ini:/app/alembic.ini
+      - ../alembic:/app/alembic
+
+  mcp-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    command: sh -c "granian src.main:mcp_app --host 0.0.0.0 --port 8001 --interface asgi --no-access-log --reload --reload-paths src/ --workers 1"
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file: ../.env
+    volumes:
+      - ../src:/app/src
+      - ../alembic.ini:/app/alembic.ini
+      - ../alembic:/app/alembic
+
+volumes:
+  pgdata:
+  miniodata:
+  redisdata:
