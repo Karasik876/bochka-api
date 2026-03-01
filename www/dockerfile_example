@@ -4,21 +4,17 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 
 
-# МОЖЕШЬ ОСОБО НЕ ВДАВАТЬСЯ В ПОДРОБНОСТИ
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PYTHON_DOWNLOADS=0
-# -------------------------------------------
 
 WORKDIR /app
 
 
-# МОЖЕШЬ ОСОБО НЕ ВДАВАТЬСЯ В ПОДРОБНОСТИ
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --no-dev
-# -------------------------------------------
 
 FROM python:3.12-slim-bookworm AS runtime
 
