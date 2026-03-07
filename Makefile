@@ -88,7 +88,7 @@ down-tests:
 
 # Run database migrations
 migrate:
-	$(UV) run $(ALEMBIC) -x run_seeds=true upgrade head
+	$(UV) run $(ALEMBIC) upgrade head
 
 # Install dependencies using uv
 install-deps:
